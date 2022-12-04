@@ -11,7 +11,7 @@ N80 = dotnet /mnt/c/code/fun/Nestor80/N80/bin/Debug/net6.0/N80.dll
 export X80_COMMAND_LINE=-t -nb
 export M80_COMMAND_LINE=-8
 
-export N80_ARGS=--show-assembly-duration --no-string-escapes --no-show-banner
+export N80_ARGS=--show-assembly-duration --no-string-escapes --no-show-banner --build-type rel
 
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
@@ -315,7 +315,7 @@ nextor_base.dat: \
 255.bytes:
 	dd if=/dev/zero of=255.bytes bs=1 count=255
 
-COMRELS = CODES.REL KVAR.REL DATA.REL CHGBNK.REL
+COMRELS = codes.REL kvar.REL data.REL chgbnk.REL
 B0RELS = $(addprefix bank0/,DOSHEAD.REL 40FF.REL B0.REL INIT.REL ALLOC.REL DSKBASIC.REL DOSBOOT.REL BDOS.REL RAMDRV.REL)
 B1RELS = $(addprefix bank1/,DOSINIT.REL MAPINIT.REL)
 B2RELS = $(addprefix bank2/,B2.REL KINIT.REL CHAR.REL DEV.REL KBIOS.REL MISC.REL SEG.REL PATH.REL FIND.REL DIR.REL HANDLES.REL DEL.REL RW.REL FILES.REL BUF.REL FAT.REL VAL.REL ERR.REL)
@@ -329,7 +329,7 @@ lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(s
 	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 
 .SECONDEXPANSION:
-$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
+$(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -337,6 +337,13 @@ $(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS)
 
 	M80 -w $(dir $@) -p ..,../bank0,../bank2 =$(notdir $(patsubst %.REL,%,$@))
 
+$(COMRELS): \
+	macros.inc \
+	const.inc \
+	condasm.inc \
+	$(patsubst %.REL,%.mac,$@)
+
+	$(N80) $(patsubst %.REL,%.mac,$@) $$
 
 ###  Bank 0
 

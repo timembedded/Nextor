@@ -14,8 +14,8 @@
 ; and checking is done that they are withing -128...+127 of IY.  The variables
 ; are all declared backwards from the end of the page-2 RAM segment.
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	macros.inc
+	INCLUDE	const.inc
 	RAMMOD
 ;
 ;

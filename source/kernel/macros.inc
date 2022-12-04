@@ -73,11 +73,6 @@ ld_a_ixl	macro
 	ld	a,l
 	endm
 
-ld_a_iyh	macro
-	db	0FDh
-	ld	a,h
-	endm
-
 or_ixl	macro
 	db	0DDh
 	or	l
