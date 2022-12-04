@@ -6,8 +6,12 @@
 
 VERSION := 2.1.1
 
+N80 = dotnet /mnt/c/code/fun/Nestor80/N80/bin/Debug/net6.0/N80.dll
+
 export X80_COMMAND_LINE=-t -nb
 export M80_COMMAND_LINE=-8
+
+export N80_ARGS=--show-assembly-duration --no-string-escapes --no-show-banner
 
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
@@ -313,7 +317,7 @@ nextor_base.dat: \
 
 COMRELS = CODES.REL KVAR.REL DATA.REL CHGBNK.REL
 B0RELS = $(addprefix bank0/,DOSHEAD.REL 40FF.REL B0.REL INIT.REL ALLOC.REL DSKBASIC.REL DOSBOOT.REL BDOS.REL RAMDRV.REL)
-B1RELS = $(addprefix bank1/,DOSINIT.REL MAPINIT.REL MSG.REL)
+B1RELS = $(addprefix bank1/,DOSINIT.REL MAPINIT.REL)
 B2RELS = $(addprefix bank2/,B2.REL KINIT.REL CHAR.REL DEV.REL KBIOS.REL MISC.REL SEG.REL PATH.REL FIND.REL DIR.REL HANDLES.REL DEL.REL RW.REL FILES.REL BUF.REL FAT.REL VAL.REL ERR.REL)
 B3RELS = $(addprefix bank3/,DOS1KER.REL)
 B4RELS = $(addprefix bank4/,JUMP.REL ENV.REL CPM.REL PARTIT.REL RAMDRV.REL TIME.REL SEG.REL MISC.REL DSKAB.REL)
@@ -363,6 +367,11 @@ bank0/b0lab_b3.inc: \
 
 ###  Bank 1
 
+bank1/msg.REL: \
+	bank1/msg.mac
+
+	$(N80) bank1/msg.mac $
+
 bank1/B1.REL: \
 	bank1/b1.mac \
 	bank0/b0labels.inc
@@ -377,6 +386,7 @@ bank1/B1.BIN: \
 bank1/B1.HEX: \
 	$(COMRELS) \
 	$(B1RELS) \
+	bank1/msg.REL \
 	bank1/B1.REL \
 	bank0/ALLOC.REL \
 	bank0/b0labels.inc
