@@ -1,5 +1,5 @@
-﻿	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+﻿	INCLUDE ../macros.inc
+	INCLUDE	../const.inc
 	
 	include b4rdlabs.inc
 

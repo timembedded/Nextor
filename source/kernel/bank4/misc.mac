@@ -3,8 +3,8 @@
 	subttl	Miscellaneous KBDOS functions (bank 4 part)
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE ../macros.inc
+	INCLUDE	../const.inc
 	;RAMMOD
 
 CHPUT	equ	00A2h	

@@ -3,9 +3,9 @@
 	subttl	Disk partition management
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
-	INCLUDE b0labels.inc
+	INCLUDE ../macros.inc
+	INCLUDE	../const.inc
+	INCLUDE ../bank0/b0labels.inc
 ;
 
 EMU_RAM_ADDRESS equ 0A000h
@@ -3426,7 +3426,7 @@ MF_UD_OK:
 
 	;Start cluster
 
-	ld	bc,FIB_CLU##
+	ld	bc,FIB_CLUSTER##
 	add	hl,bc	;Now HL points to start cluster in FIB
 	ld	a,(hl)
 	ld	(ix+UD_SCLU##),a
@@ -5635,7 +5635,7 @@ COMMA_MSG:
 FROM_MSG:
 	db	", from ",0
 TO_MSG:
-	": to ",0
+	db	": to ",0
 
 
 ;-----------------------------------------------------------------------------

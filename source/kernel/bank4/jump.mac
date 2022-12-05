@@ -3,8 +3,8 @@
 	subttl	Jump table for MSX-DOS 2.0 ROM bank 4 public routines
 ;-----------------------------------------------------------------------------
 
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE ../macros.inc
+	INCLUDE	../const.inc
 
 
 ; Jump table to routines called from outside this bank.
