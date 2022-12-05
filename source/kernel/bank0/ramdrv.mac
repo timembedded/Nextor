@@ -3,8 +3,8 @@
 	subttl	RAM disk driver
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 ;
 SLOT_REG	equ	0A8h
 ;

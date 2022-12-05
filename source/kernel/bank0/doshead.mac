@@ -3,8 +3,8 @@
 	subttl	ROM Header for MSX-DOS 2.0 ROM
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 ;
 ;
 ; This  is the ROM header for the MSX-DOS ROM.  It must always be linked first

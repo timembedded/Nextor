@@ -3,8 +3,8 @@
 
 ;===== start add DOS2.50 (build type)
 ;
-	INCLUDE	CONDASM.INC
-	INCLUDE CONST.INC
+	INCLUDE	../condasm.inc
+	INCLUDE ../const.inc
 ;
 ;===== end add DOS2.50
 ;
@@ -157,7 +157,7 @@ START:
 	subttl	ROM header
 
 if BANKED
-	include	BANK.INC
+	include	../bank.inc
 endif
 ;
 ;	Version and copyright strings.

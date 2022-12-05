@@ -3,8 +3,8 @@
 	subttl	MSX-DOS Booting up code
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 ;
 ;-----------------------------------------------------------------------------
 ;

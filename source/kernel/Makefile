@@ -11,7 +11,7 @@ N80 = dotnet /mnt/c/code/fun/Nestor80/N80/bin/Debug/net6.0/N80.dll
 export X80_COMMAND_LINE=-t -nb
 export M80_COMMAND_LINE=-8
 
-export N80_ARGS=--show-assembly-duration --no-string-escapes --no-show-banner --build-type rel
+export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0
 
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
@@ -47,6 +47,7 @@ prerequisites:
         $(if $(shell which $(exec)),,$(error "ERROR: can't execute $(exec), is it installed/in PATH?")))
 
 -include prerequisites
+
 
 #################################
 ###  RULES FOR THE ROM FILES  ###
@@ -316,7 +317,7 @@ nextor_base.dat: \
 	dd if=/dev/zero of=255.bytes bs=1 count=255
 
 COMRELS = codes.REL kvar.REL data.REL chgbnk.REL
-B0RELS = $(addprefix bank0/,DOSHEAD.REL 40FF.REL B0.REL INIT.REL ALLOC.REL DSKBASIC.REL DOSBOOT.REL BDOS.REL RAMDRV.REL)
+B0RELS = $(addprefix bank0/,doshead.REL 40ff.REL b0.REL init.REL alloc.REL dskbasic.REL dosboot.REL bdos.REL ramdrv.REL)
 B1RELS = $(addprefix bank1/,DOSINIT.REL MAPINIT.REL)
 B2RELS = $(addprefix bank2/,B2.REL KINIT.REL CHAR.REL DEV.REL KBIOS.REL MISC.REL SEG.REL PATH.REL FIND.REL DIR.REL HANDLES.REL DEL.REL RW.REL FILES.REL BUF.REL FAT.REL VAL.REL ERR.REL)
 B3RELS = $(addprefix bank3/,DOS1KER.REL)
@@ -329,7 +330,7 @@ lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(s
 	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 
 .SECONDEXPANSION:
-$(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
+$(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -337,13 +338,16 @@ $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL RE
 
 	M80 -w $(dir $@) -p ..,../bank0,../bank2 =$(notdir $(patsubst %.REL,%,$@))
 
-$(COMRELS): \
+.SECONDEXPANSION:
+$(COMRELS) $(B0RELS): \
 	macros.inc \
 	const.inc \
 	condasm.inc \
-	$(patsubst %.REL,%.mac,$@)
+	$$(patsubst %.REL,%.mac,$$@)
 
-	$(N80) $(patsubst %.REL,%.mac,$@) $$
+	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $@
+	@$(N80) $(patsubst %.REL,%.mac,$@) $$
+
 
 ###  Bank 0
 
