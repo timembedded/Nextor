@@ -328,24 +328,11 @@ B1RELS = $(addprefix bank1/,dosinit.REL mapinit.REL msg.REL)
 B2RELS = $(addprefix bank2/,kinit.REL char.REL dev.REL kbios.REL misc.REL seg.REL path.REL find.REL dir.REL handles.REL del.REL rw.REL files.REL buf.REL fat.REL val.REL err.REL)
 B3RELS = $(addprefix bank3/,dos1ker.REL)
 B4RELS = $(addprefix bank4/,jump.REL env.REL cpm.REL partit.REL ramdrv.REL time.REL seg.REL misc.REL dskab.REL)
-B5RELS = $(addprefix bank5/,B5.REL)
-B6RELS = $(addprefix bank6/,B6.REL)
-
-lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,\
-	$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,\
-	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
+B5RELS = $(addprefix bank5/,b5.REL)
+B6RELS = $(addprefix bank6/,b6.REL)
 
 .SECONDEXPANSION:
-$(B5RELS) $(B6RELS): \
-	macros.inc \
-	const.inc \
-	condasm.inc \
-	$$(patsubst %.rel,%.mac,$$(call lc,$$@))
-
-	M80 -w $(dir $@) -p ..,../bank0,../bank2 =$(notdir $(patsubst %.REL,%,$@))
-
-.SECONDEXPANSION:
-$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) drv.REL rel.REL: \
+$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) drv.REL rel.REL: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
