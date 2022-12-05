@@ -30,6 +30,11 @@ define copy_to_bin
 	cp $(1) ../../bin/kernels/$(2)
 endef
 
+define assemble
+	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(patsubst %.REL,%.mac,$(1))
+	@$(N80) $(patsubst %.REL,%.mac,$(1)) $$
+endef
+
 
 ###################
 ###  MAIN RULE  ###
@@ -318,7 +323,7 @@ nextor_base.dat: \
 
 COMRELS = codes.REL kvar.REL data.REL chgbnk.REL
 B0RELS = $(addprefix bank0/,doshead.REL 40ff.REL b0.REL init.REL alloc.REL dskbasic.REL dosboot.REL bdos.REL ramdrv.REL)
-B1RELS = $(addprefix bank1/,DOSINIT.REL MAPINIT.REL)
+B1RELS = $(addprefix bank1/,dosinit.REL mapinit.REL)
 B2RELS = $(addprefix bank2/,B2.REL KINIT.REL CHAR.REL DEV.REL KBIOS.REL MISC.REL SEG.REL PATH.REL FIND.REL DIR.REL HANDLES.REL DEL.REL RW.REL FILES.REL BUF.REL FAT.REL VAL.REL ERR.REL)
 B3RELS = $(addprefix bank3/,DOS1KER.REL)
 B4RELS = $(addprefix bank4/,JUMP.REL ENV.REL CPM.REL PARTIT.REL RAMDRV.REL TIME.REL SEG.REL MISC.REL DSKAB.REL)
@@ -330,7 +335,7 @@ lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(s
 	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 
 .SECONDEXPANSION:
-$(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
+$(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -339,14 +344,13 @@ $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
 	M80 -w $(dir $@) -p ..,../bank0,../bank2 =$(notdir $(patsubst %.REL,%,$@))
 
 .SECONDEXPANSION:
-$(COMRELS) $(B0RELS): \
+$(COMRELS) $(B0RELS) $(B1RELS): \
 	macros.inc \
 	const.inc \
 	condasm.inc \
 	$$(patsubst %.REL,%.mac,$$@)
 
-	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $@
-	@$(N80) $(patsubst %.REL,%.mac,$@) $$
+	$(call assemble,$@)
 
 
 ###  Bank 0
@@ -387,7 +391,7 @@ bank1/B1.REL: \
 	bank1/b1.mac \
 	bank0/b0labels.inc
 
-	M80 -w bank1 -p ..,../bank0 M80 =B1
+	$(call assemble,bank1/b1.mac)
 
 bank1/B1.BIN: \
 	bank1/B1.HEX

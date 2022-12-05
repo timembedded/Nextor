@@ -3,9 +3,9 @@
 	subttl	ROM Resident Part of Kernel Initialisation
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
-	INCLUDE	CONDASM.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
+	INCLUDE	../condasm.inc
 
 MAXDRV	equ	8		;max number of drives supported by disk
 DRVTBL	equ	0FB21h	
