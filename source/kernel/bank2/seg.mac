@@ -3,8 +3,8 @@
 	subttl	Allocate or Free Mapper Segment
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE MACROS.INC
-	INCLUDE CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 	RAMMOD
 ;
 ;-----------------------------------------------------------------------------

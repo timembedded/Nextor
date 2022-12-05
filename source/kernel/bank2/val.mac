@@ -3,8 +3,8 @@
 	SUBTTL	Validate Disk and Interface to Disk Drivers
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 	RAMMOD
 
 MBR_PSTART	equ	01BEh	;Start of partition table in MBR

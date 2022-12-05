@@ -3,8 +3,8 @@
 	subttl	Kernel BIOS Level Character I/O Routines
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 	RAMMOD
 ;
 MSX_CHSNS	equ	0009Ch

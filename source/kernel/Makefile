@@ -6,7 +6,8 @@
 
 VERSION := 2.1.1
 
-N80 = dotnet /mnt/c/code/fun/Nestor80/N80/bin/Debug/net6.0/N80.dll
+#N80 = dotnet /mnt/c/code/fun/Nestor80/N80/bin/Debug/net6.0/N80.dll
+N80 = dotnet /usr/bin/N80/N80.dll
 
 export X80_COMMAND_LINE=-t -nb
 export M80_COMMAND_LINE=-8
@@ -323,8 +324,8 @@ nextor_base.dat: \
 
 COMRELS = codes.REL kvar.REL data.REL chgbnk.REL
 B0RELS = $(addprefix bank0/,doshead.REL 40ff.REL b0.REL init.REL alloc.REL dskbasic.REL dosboot.REL bdos.REL ramdrv.REL)
-B1RELS = $(addprefix bank1/,dosinit.REL mapinit.REL)
-B2RELS = $(addprefix bank2/,B2.REL KINIT.REL CHAR.REL DEV.REL KBIOS.REL MISC.REL SEG.REL PATH.REL FIND.REL DIR.REL HANDLES.REL DEL.REL RW.REL FILES.REL BUF.REL FAT.REL VAL.REL ERR.REL)
+B1RELS = $(addprefix bank1/,dosinit.REL mapinit.REL msg.REL)
+B2RELS = $(addprefix bank2/,kinit.REL char.REL dev.REL kbios.REL misc.REL seg.REL path.REL find.REL dir.REL handles.REL del.REL rw.REL files.REL buf.REL fat.REL val.REL err.REL)
 B3RELS = $(addprefix bank3/,DOS1KER.REL)
 B4RELS = $(addprefix bank4/,JUMP.REL ENV.REL CPM.REL PARTIT.REL RAMDRV.REL TIME.REL SEG.REL MISC.REL DSKAB.REL)
 B5RELS = $(addprefix bank5/,B5.REL)
@@ -335,7 +336,7 @@ lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(s
 	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 
 .SECONDEXPANSION:
-$(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
+$(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -344,7 +345,7 @@ $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
 	M80 -w $(dir $@) -p ..,../bank0,../bank2 =$(notdir $(patsubst %.REL,%,$@))
 
 .SECONDEXPANSION:
-$(COMRELS) $(B0RELS) $(B1RELS): \
+$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS): \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -382,12 +383,7 @@ bank0/b0lab_b3.inc: \
 
 ###  Bank 1
 
-bank1/msg.REL: \
-	bank1/msg.mac
-
-	$(N80) bank1/msg.mac $
-
-bank1/B1.REL: \
+bank1/b1.REL: \
 	bank1/b1.mac \
 	bank0/b0labels.inc
 
@@ -402,7 +398,7 @@ bank1/B1.HEX: \
 	$(COMRELS) \
 	$(B1RELS) \
 	bank1/msg.REL \
-	bank1/B1.REL \
+	bank1/b1.REL \
 	bank0/ALLOC.REL \
 	bank0/b0labels.inc
 
@@ -410,6 +406,12 @@ bank1/B1.HEX: \
 
 
 ###  Bank 2
+
+bank2/b2.REL: \
+	bank2/b2.mac \
+	bank0/b0labels.inc
+
+	$(call assemble,bank2/b2.mac)
 
 bank2/B2.BIN: \
 	bank2/B2.HEX
@@ -419,6 +421,7 @@ bank2/B2.BIN: \
 bank2/B2.HEX bank2/B2.SYM: \
 	$(COMRELS) \
 	$(B2RELS) \
+	bank2/b2.REL \
 	bank0/b0labels.inc
 
 	LIB80 -w bank2 TEMP21=char.rel,dev.rel,kbios.rel,misc.rel,seg.rel/E
