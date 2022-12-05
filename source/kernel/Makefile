@@ -326,7 +326,7 @@ COMRELS = codes.REL kvar.REL data.REL chgbnk.REL
 B0RELS = $(addprefix bank0/,doshead.REL 40ff.REL b0.REL init.REL alloc.REL dskbasic.REL dosboot.REL bdos.REL ramdrv.REL)
 B1RELS = $(addprefix bank1/,dosinit.REL mapinit.REL msg.REL)
 B2RELS = $(addprefix bank2/,kinit.REL char.REL dev.REL kbios.REL misc.REL seg.REL path.REL find.REL dir.REL handles.REL del.REL rw.REL files.REL buf.REL fat.REL val.REL err.REL)
-B3RELS = $(addprefix bank3/,DOS1KER.REL)
+B3RELS = $(addprefix bank3/,dos1ker.REL)
 B4RELS = $(addprefix bank4/,JUMP.REL ENV.REL CPM.REL PARTIT.REL RAMDRV.REL TIME.REL SEG.REL MISC.REL DSKAB.REL)
 B5RELS = $(addprefix bank5/,B5.REL)
 B6RELS = $(addprefix bank6/,B6.REL)
@@ -336,7 +336,7 @@ lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(s
 	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 
 .SECONDEXPANSION:
-$(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS): \
+$(B4RELS) $(B5RELS) $(B6RELS): \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -345,7 +345,7 @@ $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS): \
 	M80 -w $(dir $@) -p ..,../bank0,../bank2 =$(notdir $(patsubst %.REL,%,$@))
 
 .SECONDEXPANSION:
-$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) drv.REL rel.REL: \
+$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) drv.REL rel.REL: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -437,11 +437,11 @@ bank2/b2labels.inc: \
 
 ###  Bank 3
 
-bank3/B3.REL: \
+bank3/b3.REL: \
 	bank3/b3.mac \
 	bank0/b0lab_b3.inc
 
-	M80 -w bank3 -p ..,../bank0 M80 =B3
+	$(call assemble,bank3/b3.mac)
 
 bank3/B3.BIN: \
 	bank3/B3.HEX
@@ -451,7 +451,7 @@ bank3/B3.BIN: \
 bank3/B3.HEX: \
 	$(COMRELS) \
 	$(B3RELS) \
-	bank3/B3.REL \
+	bank3/b3.REL \
 	bank0/b0lab_b3.inc \
 	bank0/DOSHEAD.REL \
 	bank0/40FF.REL
