@@ -336,7 +336,7 @@ lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(s
 	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 
 .SECONDEXPANSION:
-$(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
+$(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS): \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -345,7 +345,7 @@ $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) DRV.REL REL.REL: \
 	M80 -w $(dir $@) -p ..,../bank0,../bank2 =$(notdir $(patsubst %.REL,%,$@))
 
 .SECONDEXPANSION:
-$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS): \
+$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) drv.REL rel.REL: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
@@ -364,8 +364,8 @@ bank0/B0.BIN: \
 bank0/B0.HEX bank0/B0.SYM: \
 	$(COMRELS) \
 	$(B0RELS) \
-	DRV.REL \
-	REL.REL
+	drv.REL \
+	rel.REL
 
 	L80 -w bank0 -p .. /p:4000,CODES,KVAR,DATA,REL,DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV,/p:7700,drv,/p:7fd0,chgbnk,b0/n/x/y/e
 	$(call hex2bin,bank0/B0)
@@ -399,7 +399,7 @@ bank1/B1.HEX: \
 	$(B1RELS) \
 	bank1/msg.REL \
 	bank1/b1.REL \
-	bank0/ALLOC.REL \
+	bank0/alloc.REL \
 	bank0/b0labels.inc
 
 	L80 -w bank1 -p ..,../bank0 /P:40FF,CODES,KVAR,DATA,B1,DOSINIT,MAPINIT,ALLOC,MSG,/p:7fd0,chgbnk,B1/N/X/Y/E
