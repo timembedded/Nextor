@@ -10,7 +10,6 @@ VERSION := 2.1.1
 N80 = dotnet /usr/bin/N80/N80.dll
 
 export X80_COMMAND_LINE=-t -nb
-export M80_COMMAND_LINE=-8
 
 export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0 --output-file-case lower
 
@@ -33,7 +32,7 @@ endef
 
 define assemble
 	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
-	@$(N80) $(1) $ $(2)
+	$(N80) $(1) $$ $(2)
 endef
 
 define assemble_as
@@ -49,7 +48,7 @@ endef
 
 all: base ide ide-masteronly ide-emu ide-masteronly-emu ascii8 ascii16 mfrsd flashjacks ocm
 
-TOOLS := M80 L80 LIB80 objcopy sdcc mknexrom dd
+TOOLS := L80 LIB80 objcopy sdcc mknexrom dd
 
 .phony: prerequisites
 
@@ -128,7 +127,7 @@ drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.emulators.ROM: \
 drivers/SunriseIDE/driver.bin: \
 	drivers/SunriseIDE/driver.mac
 
-	$(call assemble,drivers/SunriseIDE/driver.mac,--build-type abs)
+	$(call assemble,drivers/SunriseIDE/driver.mac,--build-type abs --output-file-extension bin)
 
 
 ### Sunrise IDE, ROM for emulators, master device only
@@ -148,7 +147,7 @@ drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.MasterOnly.emulators.ROM: \
 drivers/SunriseIDE/drvmonly.bin: \
 	drivers/SunriseIDE/driver.mac
 
-	$(call assemble_as,drivers/SunriseIDE/driver.mac,$$/drvmonly.bin,--build-type abs --define-symbols MASTER_ONLY)
+	$(call assemble_as,drivers/SunriseIDE/driver.mac,$$/drvmonly.bin,--build-type abs  --output-file-extension bin --define-symbols MASTER_ONLY)
 
 
 ### Sunrise IDE, common rules
@@ -156,7 +155,7 @@ drivers/SunriseIDE/drvmonly.bin: \
 drivers/SunriseIDE/chgbnk.bin: \
 	drivers/SunriseIDE/chgbnk.mac
 
-	$(call assemble,drivers/SunriseIDE/chgbnk.mac,--build-type abs)
+	$(call assemble,drivers/SunriseIDE/chgbnk.mac,--build-type abs --output-file-extension bin)
 
 
 ### Standalone ASCII8
@@ -165,27 +164,23 @@ ascii8: drivers/StandaloneASCII8/Nextor-$(VERSION).StandaloneASCII8.ROM
 
 drivers/StandaloneASCII8/Nextor-$(VERSION).StandaloneASCII8.ROM: \
 	nextor_base.dat \
-	drivers/StandaloneASCII8/DRIVER.BIN \
-	drivers/StandaloneASCII8/CHGBNK.BIN \
+	drivers/StandaloneASCII8/driver.bin \
+	drivers/StandaloneASCII8/chgbnk.bin \
 	256.bytes
 
-	cat 256.bytes drivers/StandaloneASCII8/DRIVER.BIN > drivers/StandaloneASCII8/_driver.BIN
-	mknexrom nextor_base.dat $@ /d:drivers/StandaloneASCII8/_driver.BIN /m:drivers/StandaloneASCII8/CHGBNK.BIN
+	cat 256.bytes drivers/StandaloneASCII8/driver.bin > drivers/StandaloneASCII8/_driver.bin
+	mknexrom nextor_base.dat $@ /d:drivers/StandaloneASCII8/_driver.bin /m:drivers/StandaloneASCII8/chgbnk.bin
 	$(call copy_to_bin,$@)
 
-drivers/StandaloneASCII8/DRIVER.BIN: \
+drivers/StandaloneASCII8/driver.bin: \
 	drivers/StandaloneASCII8/driver.mac
 
-	M80 -w drivers/StandaloneASCII8 -p ../.. =DRIVER
-	L80 -w drivers/StandaloneASCII8 -p ../../ /P:4100,DRIVER,DRIVER/N/X/Y/E
-	$(call hex2bin,$(patsubst %.BIN,%,$@))
+	$(call assemble,drivers/StandaloneASCII8/driver.mac,--build-type abs --output-file-extension bin)
 
-drivers/StandaloneASCII8/CHGBNK.BIN: \
+drivers/StandaloneASCII8/chgbnk.bin: \
 	drivers/StandaloneASCII8/chgbnk.mac
 
-	M80 -w drivers/StandaloneASCII8 -p ../.. =CHGBNK
-	L80 -w drivers/StandaloneASCII8 /P:7fd0,CHGBNK,CHGBNK/N/X/Y/E
-	$(call hex2bin,$(patsubst %.BIN,%,$@))
+	$(call assemble,drivers/StandaloneASCII8/chgbnk.mac,--build-type abs --output-file-extension bin)
 
 
 ### Standalone ASCII16
@@ -194,27 +189,18 @@ ascii16: drivers/StandaloneASCII16/Nextor-$(VERSION).StandaloneASCII16.ROM
 
 drivers/StandaloneASCII16/Nextor-$(VERSION).StandaloneASCII16.ROM: \
 	nextor_base.dat \
-	drivers/StandaloneASCII16/DRIVER.BIN \
-	drivers/StandaloneASCII16/CHGBNK.BIN \
+	drivers/StandaloneASCII8/driver.bin \
+	drivers/StandaloneASCII16/chgbnk.bin \
 	256.bytes
 
-	cat 256.bytes drivers/StandaloneASCII16/DRIVER.BIN > drivers/StandaloneASCII16/_driver.BIN
-	mknexrom nextor_base.dat $@ /d:drivers/StandaloneASCII16/_driver.BIN /m:drivers/StandaloneASCII16/CHGBNK.BIN
+	cat 256.bytes drivers/StandaloneASCII8/driver.bin > drivers/StandaloneASCII16/_driver.bin
+	mknexrom nextor_base.dat $@ /d:drivers/StandaloneASCII16/_driver.bin /m:drivers/StandaloneASCII16/chgbnk.bin
 	$(call copy_to_bin,$@)
 
-drivers/StandaloneASCII16/DRIVER.BIN: \
-	drivers/StandaloneASCII16/driver.mac
-
-	M80 -w drivers/StandaloneASCII16 -p ../.. =DRIVER
-	L80 -w drivers/StandaloneASCII16 -p ../../ /P:4100,DRIVER,DRIVER/N/X/Y/E
-	$(call hex2bin,$(patsubst %.BIN,%,$@))
-
-drivers/StandaloneASCII16/CHGBNK.BIN: \
+drivers/StandaloneASCII16/chgbnk.bin: \
 	drivers/StandaloneASCII16/chgbnk.mac
 
-	M80 -w drivers/StandaloneASCII16 -p ../.. =CHGBNK
-	L80 -w drivers/StandaloneASCII16 /P:7fd0,CHGBNK,CHGBNK/N/X/Y/E
-	$(call hex2bin,$(patsubst %.BIN,%,$@))
+	$(call assemble,drivers/StandaloneASCII16/chgbnk.mac,--build-type abs --output-file-extension bin)
 
 
 ### MegaFlashROM SCC+ SD
@@ -227,9 +213,9 @@ mfrsd: \
 
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.ROM: \
 	nextor_base.dat \
-	drivers/StandaloneASCII8/CHGBNK.BIN
+	drivers/StandaloneASCII8/chgbnk.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/driver-1slot.dat /m:drivers/StandaloneASCII8/CHGBNK.BIN
+	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/driver-1slot.dat /m:drivers/StandaloneASCII8/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.Recovery.ROM: \
@@ -242,9 +228,9 @@ drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.Recovery.ROM: \
 	
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.ROM: \
 	nextor_base.dat \
-	drivers/StandaloneASCII8/CHGBNK.BIN
+	drivers/StandaloneASCII8/chgbnk.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/driver-2slots.dat /m:drivers/StandaloneASCII8/CHGBNK.BIN
+	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/driver-2slots.dat /m:drivers/StandaloneASCII8/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.Recovery.ROM: \
@@ -275,9 +261,9 @@ ocm: drivers/OCM/Nextor-$(VERSION).OCM.ROM
 
 drivers/OCM/Nextor-$(VERSION).OCM.ROM: \
 	nextor_base.dat \
-	drivers/StandaloneASCII8/CHGBNK.BIN
+	drivers/StandaloneASCII8/chgbnk.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/OCM/driver.dat /m:drivers/StandaloneASCII8/CHGBNK.BIN
+	mknexrom nextor_base.dat $@ /d:drivers/OCM/driver.dat /m:drivers/StandaloneASCII8/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 
@@ -340,7 +326,7 @@ $(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS)
 	condasm.inc \
 	$$(patsubst %.rel,%.mac,$$@)
 
-	$(call assemble,$(patsubst %.rel,%.mac,$@),$$)
+	$(call assemble,$(patsubst %.rel,%.mac,$@))
 
 
 ###  Bank 0
@@ -562,5 +548,3 @@ clean:
 	rm -f bank0/b0lab*.inc
 	rm -f bank2/b2labels.inc
 	rm -f bank4/b4rdlabs.inc
-
-
