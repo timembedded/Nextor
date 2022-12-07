@@ -12,7 +12,7 @@ N80 = dotnet /usr/bin/N80/N80.dll
 export X80_COMMAND_LINE=-t -nb
 export M80_COMMAND_LINE=-8
 
-export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0
+export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0 --output-file-case lower
 
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
@@ -32,8 +32,8 @@ define copy_to_bin
 endef
 
 define assemble
-	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(patsubst %.REL,%.mac,$(1))
-	@$(N80) $(patsubst %.REL,%.mac,$(1)) $$
+	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
+	@$(N80) $(1) $$ $(2)
 endef
 
 
@@ -322,23 +322,27 @@ nextor_base.dat: \
 255.bytes:
 	dd if=/dev/zero of=255.bytes bs=1 count=255
 
-COMRELS = codes.REL kvar.REL data.REL chgbnk.REL
-B0RELS = $(addprefix bank0/,doshead.REL 40ff.REL b0.REL init.REL alloc.REL dskbasic.REL dosboot.REL bdos.REL ramdrv.REL)
-B1RELS = $(addprefix bank1/,dosinit.REL mapinit.REL msg.REL)
-B2RELS = $(addprefix bank2/,kinit.REL char.REL dev.REL kbios.REL misc.REL seg.REL path.REL find.REL dir.REL handles.REL del.REL rw.REL files.REL buf.REL fat.REL val.REL err.REL)
-B3RELS = $(addprefix bank3/,dos1ker.REL)
-B4RELS = $(addprefix bank4/,jump.REL env.REL cpm.REL partit.REL ramdrv.REL time.REL seg.REL misc.REL dskab.REL)
-B5RELS = $(addprefix bank5/,b5.REL)
-B6RELS = $(addprefix bank6/,b6.REL)
+COMRELS = codes.rel kvar.rel data.rel chgbnk.rel
+B0RELS = $(addprefix bank0/,doshead.rel 40ff.rel b0.rel init.rel alloc.rel dskbasic.rel dosboot.rel bdos.rel ramdrv.rel)
+B1RELS = $(addprefix bank1/,dosinit.rel mapinit.rel msg.rel)
+B2RELS = $(addprefix bank2/,kinit.rel char.rel dev.rel kbios.rel misc.rel seg.rel path.rel find.rel dir.rel handles.rel del.rel rw.rel files.rel buf.rel fat.rel val.rel err.rel)
+B3RELS = $(addprefix bank3/,dos1ker.rel)
+B4RELS = $(addprefix bank4/,jump.rel env.rel cpm.rel partit.rel ramdrv.rel time.rel seg.rel misc.rel dskab.rel)
+B5RELS = $(addprefix bank5/,b5.rel)
+B6RELS = $(addprefix bank6/,b6.rel)
+
+lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,\
+	$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,\
+	$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
 
 .SECONDEXPANSION:
-$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) drv.REL rel.REL: \
+$(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS) drv.rel rel.rel: \
 	macros.inc \
 	const.inc \
 	condasm.inc \
-	$$(patsubst %.REL,%.mac,$$@)
+	$$(patsubst %.rel,%.mac,$$@)
 
-	$(call assemble,$@)
+	$(call assemble,$(patsubst %.rel,%.mac,$@))
 
 
 ###  Bank 0
@@ -351,10 +355,10 @@ bank0/B0.BIN: \
 bank0/B0.HEX bank0/B0.SYM: \
 	$(COMRELS) \
 	$(B0RELS) \
-	drv.REL \
-	rel.REL
+	drv.rel \
+	rel.rel
 
-	L80 -w bank0 -p .. /p:4000,CODES,KVAR,DATA,REL,DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV,/p:7700,drv,/p:7fd0,chgbnk,b0/n/x/y/e
+	L80 -w bank0 -p .. /p:4000,CODES,KVAR,DATA,REL,DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV,/p:7700,DRV,/p:7fd0,CHGBNK,b0/n/x/y/e
 	$(call hex2bin,bank0/B0)
 
 bank0/b0labels.inc: \
@@ -370,7 +374,7 @@ bank0/b0lab_b3.inc: \
 
 ###  Bank 1
 
-bank1/b1.REL: \
+bank1/b1.rel: \
 	bank1/b1.mac \
 	bank0/b0labels.inc
 
@@ -384,17 +388,17 @@ bank1/B1.BIN: \
 bank1/B1.HEX: \
 	$(COMRELS) \
 	$(B1RELS) \
-	bank1/msg.REL \
-	bank1/b1.REL \
-	bank0/alloc.REL \
+	bank1/msg.rel \
+	bank1/b1.rel \
+	bank0/alloc.rel \
 	bank0/b0labels.inc
 
-	L80 -w bank1 -p ..,../bank0 /P:40FF,CODES,KVAR,DATA,B1,DOSINIT,MAPINIT,ALLOC,MSG,/p:7fd0,chgbnk,B1/N/X/Y/E
+	L80 -w bank1 -p ..,../bank0 /P:40FF,CODES,KVAR,DATA,B1,DOSINIT,MAPINIT,ALLOC,MSG,/p:7fd0,CHGBNK,B1/N/X/Y/E
 
 
 ###  Bank 2
 
-bank2/b2.REL: \
+bank2/b2.rel: \
 	bank2/b2.mac \
 	bank0/b0labels.inc
 
@@ -408,13 +412,13 @@ bank2/B2.BIN: \
 bank2/B2.HEX bank2/B2.SYM: \
 	$(COMRELS) \
 	$(B2RELS) \
-	bank2/b2.REL \
+	bank2/b2.rel \
 	bank0/b0labels.inc
 
 	LIB80 -w bank2 TEMP21=char.rel,dev.rel,kbios.rel,misc.rel,seg.rel/E
 	LIB80 -w bank2 TEMP22=path.rel,find.rel,dir.rel,handles.rel,del.rel,rw.rel,files.rel/E
 	LIB80 -w bank2 TEMP23=buf.rel,fat.rel,val.rel,err.rel/E
-	L80 -w bank2 -p .. /P:40FF,CODES,KVAR,DATA,B2,KINIT,TEMP21,TEMP22,TEMP23,/p:7fd0,chgbnk,B2/N/X/Y/E
+	L80 -w bank2 -p .. /P:40FF,CODES,KVAR,DATA,B2,KINIT,TEMP21,TEMP22,TEMP23,/p:7fd0,CHGBNK,B2/N/X/Y/E
 
 bank2/b2labels.inc: \
 	bank2/B2.SYM
@@ -424,7 +428,7 @@ bank2/b2labels.inc: \
 
 ###  Bank 3
 
-bank3/b3.REL: \
+bank3/b3.rel: \
 	bank3/b3.mac \
 	bank0/b0lab_b3.inc
 
@@ -438,12 +442,12 @@ bank3/B3.BIN: \
 bank3/B3.HEX: \
 	$(COMRELS) \
 	$(B3RELS) \
-	bank3/b3.REL \
+	bank3/b3.rel \
 	bank0/b0lab_b3.inc \
-	bank0/DOSHEAD.REL \
-	bank0/40FF.REL
+	bank0/doshead.rel \
+	bank0/40ff.rel
 
-	L80 -w bank3 -p ..,../bank0 /p:4000,CODES,KVAR,DATA,DOSHEAD,40FF,B3,DOS1KER,/p:7700,drv,/p:7fd0,chgbnk,b3/N/X/Y/E
+	L80 -w bank3 -p ..,../bank0 /p:4000,CODES,KVAR,DATA,DOSHEAD,40FF,B3,DOS1KER,/p:7700,drv,/p:7fd0,CHGBNK,B3/N/X/Y/E
 
 
 ###  Bank 4
@@ -453,14 +457,14 @@ bank4/b4rdlabs.inc: \
 
 	$(call SymToEqus,bank4/B4.SYM,bank4/b4rdlabs.inc,R4_[1-9])
 
-bank4/b4.REL: \
+bank4/b4.rel: \
 	bank.inc \
 	bank4/b4.mac \
 	bank2/b2labels.inc
 
 	$(call assemble,bank4/b4.mac)
 
-bank4/ramdrvh.REL: \
+bank4/ramdrvh.rel: \
 	macros.inc \
 	const.inc \
 	bank4/ramdrvh.mac \
@@ -479,7 +483,7 @@ bank4/B4RD.BIN: \
 	$(call hex2bin,bank4/B4RD)
 
 bank4/B4RD.HEX: \
-	bank4/ramdrvh.REL \
+	bank4/ramdrvh.rel \
 	bank4/b4rdlabs.inc
 
 	L80 -w bank4 -p .. /P:4080,RAMDRVH,B4RD/N/X/Y/E
@@ -487,12 +491,12 @@ bank4/B4RD.HEX: \
 bank4/B4.HEX bank4/B4.SYM: \
 	$(COMRELS) \
 	$(B4RELS) \
-	bank4/b4.REL \
-	bank4/ramdrv.REL \
+	bank4/b4.rel \
+	bank4/ramdrv.rel \
 	bank0/b0labels.inc \
 	bank2/b2labels.inc \
 
-	L80 -w bank4 -p ..,../bank0,../bank2 /P:40FF,CODES,KVAR,DATA,B4,JUMP,ENV,CPM,PARTIT,RAMDRV,TIME,SEG,MISC,/p:7bc0,DSKAB,/p:7fd0,chgbnk,B4/N/X/Y/E
+	L80 -w bank4 -p ..,../bank0,../bank2 /P:40FF,CODES,KVAR,DATA,B4,JUMP,ENV,CPM,PARTIT,RAMDRV,TIME,SEG,MISC,/p:7bc0,DSKAB,/p:7fd0,CHGBNK,B4/N/X/Y/E
 
 
 ###  Banks 5 and 6 (FDISK)
@@ -505,9 +509,9 @@ bank5/B5.BIN: \
 bank5/B5.HEX: \
 	$(COMRELS) \
 	$(B5RELS) \
-	bank0/40FF.REL
+	bank0/40ff.rel
 
-	L80 -w bank5 -p .. /P:40FF,CODES,KVAR,DATA,B5,/p:7fd0,chgbnk,B5/N/X/Y/E
+	L80 -w bank5 -p .. /P:40FF,CODES,KVAR,DATA,B5,/p:7fd0,CHGBNK,B5/N/X/Y/E
 
 bank6/B6.BIN: \
 	bank6/B6.HEX
@@ -517,9 +521,9 @@ bank6/B6.BIN: \
 bank6/B6.HEX: \
 	$(COMRELS) \
 	$(B6RELS) \
-	bank0/40FF.REL
+	bank0/40ff.rel
 
-	L80 -w bank6 -p .. /P:40FF,CODES,KVAR,DATA,B6,/p:7fd0,chgbnk,B6/N/X/Y/E
+	L80 -w bank6 -p .. /P:40FF,CODES,KVAR,DATA,B6,/p:7fd0,CHGBNK,B6/N/X/Y/E
 
 bank5/fdisk.dat bank5/fdisk2.dat: \
 	bank5/fdisk_crt0.rel \
@@ -560,3 +564,5 @@ clean:
 	rm -f bank0/b0lab*.inc
 	rm -f bank2/b2labels.inc
 	rm -f bank4/b4rdlabs.inc
+
+
