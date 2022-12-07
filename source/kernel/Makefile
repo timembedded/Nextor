@@ -33,8 +33,14 @@ endef
 
 define assemble
 	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
-	@$(N80) $(1) $$ $(2)
+	@$(N80) $(1) $ $(2)
 endef
+
+define assemble_as
+	@printf "\n\033[0;36mXAssembling %s as %s\033[0m\n\n" $(1) $(2)
+	@$(N80) $(1) $(2) $(3)
+endef
+
 
 
 ###################
@@ -74,9 +80,9 @@ ide: drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.ROM
 drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.ROM: \
 	nextor_base.dat \
 	drivers/SunriseIDE/sunride.BIN \
-	drivers/SunriseIDE/CHGBNK.BIN
+	drivers/SunriseIDE/chgbnk.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.BIN /m:drivers/SunriseIDE/CHGBNK.BIN
+	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.BIN /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 drivers/SunriseIDE/sunride.BIN: \
@@ -92,9 +98,9 @@ ide-masteronly: drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.MasterOnly.ROM
 drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.MasterOnly.ROM: \
 	nextor_base.dat \
 	drivers/SunriseIDE/sunride.masteronly.BIN \
-	drivers/SunriseIDE/CHGBNK.BIN
+	drivers/SunriseIDE/chgbnk.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.masteronly.BIN /m:drivers/SunriseIDE/CHGBNK.BIN
+	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.masteronly.BIN /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 drivers/SunriseIDE/sunride.masteronly.BIN: \
@@ -111,20 +117,18 @@ ide-emu: drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.emulators.ROM
 
 drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.emulators.ROM: \
 	nextor_base.dat \
-	drivers/SunriseIDE/DRIVER.BIN \
-	drivers/SunriseIDE/CHGBNK.BIN \
+	drivers/SunriseIDE/driver.bin \
+	drivers/SunriseIDE/chgbnk.bin \
 	256.bytes
 
-	cat 256.bytes drivers/SunriseIDE/DRIVER.BIN > drivers/SunriseIDE/_driver.BIN
-	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/_driver.BIN /m:drivers/SunriseIDE/CHGBNK.BIN
+	cat 256.bytes drivers/SunriseIDE/driver.bin > drivers/SunriseIDE/_driver.BIN
+	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/_driver.BIN /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
-drivers/SunriseIDE/DRIVER.BIN: \
+drivers/SunriseIDE/driver.bin: \
 	drivers/SunriseIDE/driver.mac
 
-	M80 -w drivers/SunriseIDE -p ../.. =DRIVER
-	L80 -w drivers/SunriseIDE -p ../../ /P:4100,DRIVER,DRIVER/N/X/Y/E
-	$(call hex2bin,$(patsubst %.BIN,%,$@))
+	$(call assemble,drivers/SunriseIDE/driver.mac,--build-type abs)
 
 
 ### Sunrise IDE, ROM for emulators, master device only
@@ -133,32 +137,26 @@ ide-masteronly-emu: drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.MasterOnly.e
 
 drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.MasterOnly.emulators.ROM: \
 	nextor_base.dat \
-	drivers/SunriseIDE/DRVMONLY.BIN \
-	drivers/SunriseIDE/CHGBNK.BIN \
+	drivers/SunriseIDE/drvmonly.bin \
+	drivers/SunriseIDE/chgbnk.bin \
 	256.bytes
 
-	cat 256.bytes drivers/SunriseIDE/DRVMONLY.BIN > drivers/SunriseIDE/_driver.BIN
-	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/_driver.BIN /m:drivers/SunriseIDE/CHGBNK.BIN
+	cat 256.bytes drivers/SunriseIDE/drvmonly.bin > drivers/SunriseIDE/_driver.BIN
+	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/_driver.BIN /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
-drivers/SunriseIDE/DRVMONLY.BIN: \
+drivers/SunriseIDE/drvmonly.bin: \
 	drivers/SunriseIDE/driver.mac
 
-	sed 's/MASTER_ONLY equ 0/MASTER_ONLY equ 1/g' drivers/SunriseIDE/driver.mac > drivers/SunriseIDE/drvmonly.mac
-
-	M80 -w drivers/SunriseIDE -p ../.. =DRVMONLY
-	L80 -w drivers/SunriseIDE -p ../../ /P:4100,DRVMONLY,DRVMONLY/N/X/Y/E
-	$(call hex2bin,$(patsubst %.BIN,%,$@))
+	$(call assemble_as,drivers/SunriseIDE/driver.mac,$$/drvmonly.bin,--build-type abs --define-symbols MASTER_ONLY)
 
 
 ### Sunrise IDE, common rules
 
-drivers/SunriseIDE/CHGBNK.BIN: \
+drivers/SunriseIDE/chgbnk.bin: \
 	drivers/SunriseIDE/chgbnk.mac
 
-	M80 -w drivers/SunriseIDE -p ../.. =CHGBNK
-	L80 -w drivers/SunriseIDE /P:7fd0,CHGBNK,CHGBNK/N/X/Y/E
-	$(call hex2bin,$(patsubst %.BIN,%,$@))
+	$(call assemble,drivers/SunriseIDE/chgbnk.mac,--build-type abs)
 
 
 ### Standalone ASCII8
@@ -342,7 +340,7 @@ $(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS)
 	condasm.inc \
 	$$(patsubst %.rel,%.mac,$$@)
 
-	$(call assemble,$(patsubst %.rel,%.mac,$@))
+	$(call assemble,$(patsubst %.rel,%.mac,$@),$$)
 
 
 ###  Bank 0
