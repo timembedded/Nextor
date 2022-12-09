@@ -78,16 +78,16 @@ ide: drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.ROM
 
 drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.ROM: \
 	nextor_base.dat \
-	drivers/SunriseIDE/sunride.BIN \
+	drivers/SunriseIDE/sunride.bin \
 	drivers/SunriseIDE/chgbnk.bin
 
 	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.BIN /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
-drivers/SunriseIDE/sunride.BIN: \
+drivers/SunriseIDE/sunride.bin: \
 	drivers/SunriseIDE/sunride.asm
 
-	sjasm -c drivers/SunriseIDE/sunride.asm drivers/SunriseIDE/sunride.BIN
+	$(call assemble,drivers/SunriseIDE/sunride.asm,--build-type abs --output-file-extension bin --define-symbols BAD_POPS)
 
 
 ### Sunrise IDE, normal ROM, master device only
@@ -96,18 +96,16 @@ ide-masteronly: drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.MasterOnly.ROM
 
 drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.MasterOnly.ROM: \
 	nextor_base.dat \
-	drivers/SunriseIDE/sunride.masteronly.BIN \
+	drivers/SunriseIDE/sunride.masteronly.bin \
 	drivers/SunriseIDE/chgbnk.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.masteronly.BIN /m:drivers/SunriseIDE/chgbnk.bin
+	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.masteronly.bin /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
-drivers/SunriseIDE/sunride.masteronly.BIN: \
+drivers/SunriseIDE/sunride.masteronly.bin: \
 	drivers/SunriseIDE/sunride.asm
 
-	sed 's/MASTER_ONLY equ 0/MASTER_ONLY equ 1/g' drivers/SunriseIDE/sunride.asm > drivers/SunriseIDE/sunride.masteronly.asm
-
-	sjasm -c drivers/SunriseIDE/sunride.masteronly.asm drivers/SunriseIDE/sunride.masteronly.BIN
+	$(call assemble_as,drivers/SunriseIDE/sunride.asm,$$/sunride.masteronly.bin,--build-type abs --output-file-extension bin --define-symbols MASTER_ONLY,BAD_POPS)
 
 
 ### Sunrise IDE, ROM for emulators
