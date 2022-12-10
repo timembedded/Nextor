@@ -6,7 +6,6 @@
 
 VERSION := 2.1.1
 
-#N80 = dotnet /mnt/c/code/fun/Nestor80/N80/bin/Debug/net6.0/N80.dll
 N80 = dotnet /usr/bin/N80/N80.dll
 
 export X80_COMMAND_LINE=-t -nb
@@ -265,12 +264,17 @@ drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.Recovery.ROM: \
 
 flashjacks: drivers/Flashjacks/Nextor-$(VERSION).Flashjacks.ROM
 
-drivers/Flashjacks/Nextor-$(VERSION).Flashjacks.ROM: \
-	nextor_base.dat \
+drivers/Flashjacks/flashjacks.bin: \
 	drivers/Flashjacks/flashjacks.asm
 
-	sjasm drivers/Flashjacks/flashjacks.asm drivers/Flashjacks/driver.BIN
-	mknexrom nextor_base.dat $@ /d:drivers/Flashjacks/driver.BIN /m:drivers/Flashjacks/chgbnk.dat
+	$(call assemble,drivers/Flashjacks/flashjacks.asm,--build-type abs --output-file-extension bin)
+
+drivers/Flashjacks/Nextor-$(VERSION).Flashjacks.ROM: \
+	nextor_base.dat \
+	drivers/Flashjacks/flashjacks.bin \
+	drivers/SunriseIDE/chgbnk.bin
+
+	mknexrom nextor_base.dat $@ /d:drivers/Flashjacks/flashjacks.bin /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 
