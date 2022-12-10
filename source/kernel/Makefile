@@ -32,11 +32,11 @@ endef
 
 define assemble
 	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
-	$(N80) $(1) $$ $(2)
+	@$(N80) $(1) $$ $(2)
 endef
 
 define assemble_as
-	@printf "\n\033[0;36mXAssembling %s as %s\033[0m\n\n" $(1) $(2)
+	@printf "\n\033[0;36mAssembling %s as %s\033[0m\n\n" $(1) $(2)
 	@$(N80) $(1) $(2) $(3)
 endef
 
@@ -209,34 +209,55 @@ mfrsd: \
 	drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.ROM \
 	drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.Recovery.ROM \
 
+drivers/MegaFlashRomSD/mfrsd-1slot.bin: \
+	drivers/MegaFlashRomSD/mfrsd.asm
+
+	$(call assemble_as,drivers/MegaFlashRomSD/mfrsd.asm,$$/mfrsd-1slot.bin,--build-type abs --output-file-extension bin --define-symbols NUM_SLOTS=1)
+
+drivers/MegaFlashRomSD/mfrsd-2slots.bin: \
+	drivers/MegaFlashRomSD/mfrsd.asm
+
+	$(call assemble_as,drivers/MegaFlashRomSD/mfrsd.asm,$$/mfrsd-2slots.bin,--build-type abs --output-file-extension bin --define-symbols NUM_SLOTS=2)
+
+drivers/MegaFlashRomSD/recovery_header.bin: \
+	drivers/MegaFlashRomSD/recovery_header.asm
+
+	$(call assemble,drivers/MegaFlashRomSD/recovery_header.asm,--build-type abs --output-file-extension bin)
+
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.ROM: \
 	nextor_base.dat \
-	drivers/StandaloneASCII8/chgbnk.bin
+	drivers/StandaloneASCII8/chgbnk.bin \
+	drivers/MegaFlashRomSD/mfrsd-1slot.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/driver-1slot.dat /m:drivers/StandaloneASCII8/chgbnk.bin
+	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/mfrsd-1slot.bin /m:drivers/StandaloneASCII8/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.Recovery.ROM: \
 	drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.ROM \
-	drivers/MegaFlashRomSD/makerecoverykernel.asm
+	drivers/MegaFlashRomSD/recovery_header.bin
 
-	cp drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.ROM drivers/MegaFlashRomSD/nextor2.rom
-	sjasm drivers/MegaFlashRomSD/makerecoverykernel.asm $@
+	cat drivers/MegaFlashRomSD/recovery_header.bin \
+		drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.ROM \
+		> drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.1-slot.Recovery.ROM
+
 	$(call copy_to_bin,$@)
 	
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.ROM: \
 	nextor_base.dat \
-	drivers/StandaloneASCII8/chgbnk.bin
+	drivers/StandaloneASCII8/chgbnk.bin \
+	drivers/MegaFlashRomSD/mfrsd-2slots.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/driver-2slots.dat /m:drivers/StandaloneASCII8/chgbnk.bin
+	mknexrom nextor_base.dat $@ /d:drivers/MegaFlashRomSD/mfrsd-2slots.bin /m:drivers/StandaloneASCII8/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.Recovery.ROM: \
 	drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.ROM \
-	drivers/MegaFlashRomSD/makerecoverykernel.asm
+	drivers/MegaFlashRomSD/recovery_header.bin
 
-	cp drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.ROM drivers/MegaFlashRomSD/nextor2.rom
-	sjasm drivers/MegaFlashRomSD/makerecoverykernel.asm $@
+	cat drivers/MegaFlashRomSD/recovery_header.bin \
+		drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.ROM \
+		> drivers/MegaFlashRomSD/Nextor-$(VERSION).MegaFlashSDSCC.2-slots.Recovery.ROM
+
 	$(call copy_to_bin,$@)
 
 

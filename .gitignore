@@ -30,7 +30,6 @@ source/kernel/bank*/*.inc
 source/kernel/drivers/*.inc
 source/kernel/drivers/**/*.inc
 source/kernel/drivers/**/*.lst
-!source/kernel/drivers/MegaFlashRomSD/*.bin
 source/kernel/drivers/**/*.rom
 source/kernel/drivers/**/*.ROM
 source/kernel/bank5/*.dat
