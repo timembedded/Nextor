@@ -2,8 +2,10 @@
 	SUBTTL	BDOS and BIOS
 ;
 	.Z80
-	include	MACROS.INC
-	include USEKMSG.MAC
+	include macros.inc
+
+	;NO_J_MSG constant must be defined externally 
+	;when Japanese error messages aren't included in the build.
 ;
 ;
 FALSE	EQU	0
@@ -1772,7 +1774,7 @@ DSTR:	LD	A,(DE)		; Get character from message.
 ;
 ;
 MESSAGE:LD	B,A		; B=message number.
-if NOKMSG
+ifdef NO_J_MSG
 	LD	DE,MESSAGES+2	; Point DE to messages table.
 else
 	xor	a
