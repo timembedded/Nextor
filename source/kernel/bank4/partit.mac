@@ -208,14 +208,14 @@ DO_EXTPAR:
 	jp	nz,UNEX_PART
 
 	ld	a,(ix+POFF_PSTART)	;Save the start sector number of the outer extended partition
-	ld_iyl_a			;(the one that includes all other extended partitions).
+	ld iyl,a			;(the one that includes all other extended partitions).
 	ld	a,(ix+POFF_PSTART+1)	;We need it to calculate the offsets of the inner
-	ld_iyh_a			;extended partitions.
+	ld iyh,a			;extended partitions.
 	push	iy
 	ld	a,(ix+POFF_PSTART+2)
-	ld_iyl_a
+	ld iyl,a
 	ld	a,(ix+POFF_PSTART+3)
-	ld_iyh_a
+	ld iyh,a
 	push	iy
 
 	;=== Loop for extended partition search ===
@@ -354,7 +354,7 @@ DEV_READ:
 	push	de
 	push	hl
 
-	ld_iyh_c
+	ld iyh,c
 	ld	ix,DEV_RW##
 	ld	(BK4_ADD##),ix
 	ld	ix,CALDRV##
@@ -596,7 +596,7 @@ AUTODRV_DRVLOOP:
 	;      A  = Relative drive for the driver
 
 	ld	c,a
-	ld_a_iyl
+	ld a,iyl
 	ld	(ix+UD1_SLOT##),a		;Set slot number in table entry
 	ld	a,c
     ld  (ix+UD1_REL##),a    
@@ -606,7 +606,7 @@ AUTODRV_DRVLOOP:
 	push	iy
 	push	ix
 
-    ld_a_iyh	;ld a,(iy+4)
+    ld a,iyh	;ld a,(iy+4)
 	and 00000100b	;Driver provides config?
 	jr z,AUTODRV_DRVL2
 	push ix
@@ -707,7 +707,7 @@ AUTOD_UDFND:
 	;--- Check if it is assigned to a device based driver
 
 	ld	a,(ix+UD_SLOT##)
-	ld_iyh_a
+	ld iyh,a
 
 	ld	c,a
 	ld	a,(KER250##)
@@ -1066,7 +1066,7 @@ AA_CHKDUP_OK:
 	;--- Obtain device information
 
 	ld	a,(ix+AAD_DRIVER_SLOT)
-	ld_iyh_a
+	ld iyh,a
 	ld	hl,LUN_INFO##
 	ld	(BK4_ADD##),hl
 	ld	hl,($SECBUF##)
@@ -1565,7 +1565,7 @@ AA_WSEC:
 AA_RSEC:
     or a
 AA_DOSEC:    
-	ld_iyh_c
+	ld iyh,c
 	ld	hl,DEV_RW##
 	ld	(BK4_ADD##),hl
 	ld	c,b
@@ -2481,7 +2481,7 @@ F_CDRVR_GO:
 	ret	nz
 
 	ld	(BK4_ADD##),de
-	ld_iyh_c
+	ld iyh,c
 	ld	l,(ix)
 	ld	h,(ix+1)
 	push	hl
@@ -2629,10 +2629,10 @@ UNMAP_LOOP:
 	inc	hl
 	ld	h,(hl)
 	ld	l,a
-	cp_iyl
+	cp iyl
 	jr	nz,UNMAP_OK1
 	ld	a,h
-	cp_iyh
+	cp iyh
 	jr	z,UNMAP_NEXT2	;It is the unit not to be unassigned
 UNMAP_OK1:
 
@@ -3083,7 +3083,7 @@ MAP_SPECIFIC:
 	ld	c,(iy)
 	ld	a,(iy+2)
 	ld	b,(iy+3)
-	ld_iyh_c
+	ld iyh,c
 	ld	hl,($SECBUF##)
 	ld	ix,CALDRV##
 	call	CALSLT
@@ -3120,7 +3120,7 @@ MAP_SPECIFIC:
 	ld	c,(iy)
 	ld	a,(iy+2)
 	ld	b,(iy+3)
-	ld_iyh_c
+	ld iyh,c
 	ld	ix,CALDRV##
 	call	CALSLT
 	pop	iy
@@ -3649,7 +3649,7 @@ MAPDOS1_DEF:
 	push hl
 	push ix
 	ld a,(ix+UD1_SLOT##)
-	ld_iyh_a
+	ld iyh,a
 	call	GET_DV_TYPE
 	pop ix
 	pop hl
@@ -3814,7 +3814,7 @@ MAPDOS1_CHK_NEXT:
 	ld	c,(iy)
 	ld	a,(iy+2)
 	ld	b,(iy+3)
-	ld_iyh_c
+	ld iyh,c
 	ld	hl,($SECBUF##)
 	ld	ix,CALDRV##
 	call	CALSLT
@@ -5961,7 +5961,7 @@ DRVS1LOOP:
 	pop de
 	jr c,DRVS1NEXT	;Skip if not a Nextor kernel
 
-	ld_iyh_e
+	ld iyh,e
 	call GET_DV_TYPE
     bit 0,a ;Device-based?
     jr z,DRVS1NEXT ;No: skip
@@ -6199,7 +6199,7 @@ ASK_DRIVE_CONFIG:
     push de
 	push bc ;BC=DOS mode and relative unit
 	ld a,(ix+UD_SLOT##)
-	ld_iyh_a
+	ld iyh,a
 	ld hl,DV_CONFIG##
 	ld	(BK4_ADD##),hl
 	ld a,CFG_DEVLUN

@@ -806,8 +806,8 @@ IS_DVB:
 	jr	nz,IS_NOT_DVB
 
 	ld	iy,(DVB_TABLE##)
-	ld_a_iyh
-	or_iyl
+	ld a,iyh
+	or iyl
 	jr	z,IS_NOT_DVB
 
 	ld	a,(iy)
