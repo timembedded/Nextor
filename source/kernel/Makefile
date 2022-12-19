@@ -6,8 +6,6 @@
 
 VERSION := 2.1.1
 
-N80 = dotnet /usr/bin/N80/N80.dll
-
 export X80_COMMAND_LINE=-t -nb
 
 export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0 --output-file-case lower
@@ -31,12 +29,12 @@ endef
 
 define assemble
 	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
-	@$(N80) $(1) $$ $(2)
+	@N80 $(1) $$ $(2)
 endef
 
 define assemble_as
 	@printf "\n\033[0;36mAssembling %s as %s\033[0m\n\n" $(1) $(2)
-	@$(N80) $(1) $(2) $(3)
+	@N80 $(1) $(2) $(3)
 endef
 
 
@@ -47,7 +45,7 @@ endef
 
 all: base ide ide-masteronly ide-emu ide-masteronly-emu ascii8 ascii16 mfrsd flashjacks ocm
 
-TOOLS := L80 LIB80 objcopy sdcc mknexrom dd
+TOOLS := N80 L80 LIB80 objcopy sdcc mknexrom dd
 
 .phony: prerequisites
 

@@ -2,8 +2,6 @@
 
 # The generated NEXTOR.SYS and NEXTOR.SYS.japanese files are copied to the bin/tools directory.
 
-N80 = dotnet /usr/bin/N80/N80.dll
-
 export X80_COMMAND_LINE=-t -nb
 export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0 --output-file-case lower --include-directory ../../kernel
 
@@ -17,14 +15,14 @@ endef
 
 define assemble
 	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
-	@$(N80) $(1) $(2)
+	@N80 $(1) $(2)
 endef
 
 nextor-sys: NEXTOR.SYS NEXTORK.SYS
 
 .phony: prerequisites
 
-TOOLS := L80 objcopy
+TOOLS := N80 L80 objcopy
 
 prerequisites:
 	@mkdir -p ../../../bin/tools
