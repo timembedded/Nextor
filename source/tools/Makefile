@@ -4,7 +4,7 @@
 # The generated files are copied to the bin/tools directory.
 
 export X80_COMMAND_LINE=-t -nb
-export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0 --output-file-case upper --include-directory ../kernel
+export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case upper --include-directory ../kernel
 
 define hex2bin
 	objcopy -I ihex -O binary $(1) $(2)

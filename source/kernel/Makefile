@@ -8,7 +8,7 @@ VERSION := 2.1.1
 
 export X80_COMMAND_LINE=-t -nb
 
-export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --status-verbosity 0 --output-file-case lower
+export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case lower
 
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
