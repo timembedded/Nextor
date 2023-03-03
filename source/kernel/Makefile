@@ -22,19 +22,15 @@ ifeq ($(strip $(LK80)),)
 LK80=LK80
 endif
 
-export LK80_ARGS=--no-show-banner --verbosity 0 --output-file-case lower --output-format hex
+export LK80_ARGS=--no-show-banner --verbosity 0 --output-file-case lower --output-format bin
 
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
     cat $(1) | grep -Eo "$(REGEX)" | sed -r "s/$(REGEX)/\2 equ \1h\n\tpublic \2\n/g" > $(2)
 endef
 
-define hex2bin_full
-    objcopy -I ihex -O binary $(1) $(2)
-endef
-
 define hex2bin
-    $(call hex2bin_full,$(1).HEX,$(1).BIN)
+    objcopy -I ihex -O binary $(1) $(2)
 endef
 
 define copy_to_bin
@@ -369,23 +365,17 @@ $(COMRELS) $(B0RELS) $(B1RELS) $(B2RELS) $(B3RELS) $(B4RELS) $(B5RELS) $(B6RELS)
 
 ###  Bank 0
 
-bank0/B0.BIN: \
-	bank0/B0.HEX
-
-	$(call hex2bin,bank0/B0)
-
-bank0/B0.HEX bank0/B0.SYM: \
+bank0/B0.BIN bank0/B0.SYM: \
 	$(COMRELS) \
 	$(B0RELS) \
 	drv.rel \
 	rel.rel
 
 	$(call print_linking,"bank 0")
-	@$(LK80) --working-dir bank0 --symbols-file B0.SYM --output-file B0.HEX \
+	@$(LK80) --working-dir bank0 --symbols-file B0.SYM --output-file B0.BIN \
 			--code 4000h ../codes.rel ../kvar.rel ../data.rel ../rel.rel doshead.rel 40ff.rel b0.rel init.rel alloc.rel dskbasic.rel dosboot.rel bdos.rel ramdrv.rel \
 			--code 7700h ../drv.rel \
 			--code 7fd0h ../chgbnk.rel
-	$(call hex2bin,bank0/B0)
 
 bank0/b0labels.inc: \
 	bank0/B0.SYM
@@ -407,11 +397,6 @@ bank1/b1.rel: \
 	$(call assemble,bank1/b1.mac)
 
 bank1/B1.BIN: \
-	bank1/B1.HEX
-
-	$(call hex2bin,bank1/B1)
-
-bank1/B1.HEX: \
 	$(COMRELS) \
 	$(B1RELS) \
 	bank1/msg.rel \
@@ -420,7 +405,7 @@ bank1/B1.HEX: \
 	bank0/b0labels.inc
 
 	$(call print_linking,"bank 1")
-	@$(LK80) --working-dir bank1 --symbols-file B1.SYM --output-file B1.HEX \
+	@$(LK80) --working-dir bank1 --symbols-file B1.SYM --output-file B1.BIN \
 			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b1.rel dosinit.rel mapinit.rel ../bank0/alloc.rel msg.rel \
 			--code 7fd0h ../chgbnk.rel
 
@@ -433,12 +418,7 @@ bank2/b2.rel: \
 
 	$(call assemble,bank2/b2.mac)
 
-bank2/B2.BIN: \
-	bank2/B2.HEX
-
-	$(call hex2bin,bank2/B2)
-
-bank2/B2.HEX bank2/B2.SYM: \
+bank2/B2.BIN bank2/B2.SYM: \
 	$(COMRELS) \
 	$(B2RELS) \
 	bank2/b2.rel \
@@ -449,7 +429,7 @@ bank2/B2.HEX bank2/B2.SYM: \
 	LIB80 -w bank2 TEMP23=buf.rel,fat.rel,val.rel,err.rel/E
 
 	$(call print_linking,"bank 2")
-	@$(LK80) --working-dir bank2 --symbols-file B2.SYM --output-file B2.HEX \
+	@$(LK80) --working-dir bank2 --symbols-file B2.SYM --output-file B2.BIN \
 			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b2.rel kinit.rel TEMP21.REL TEMP22.REL TEMP23.REL \
 			--code 7fd0h ../chgbnk.rel
 
@@ -468,11 +448,6 @@ bank3/b3.rel: \
 	$(call assemble,bank3/b3.mac)
 
 bank3/B3.BIN: \
-	bank3/B3.HEX
-
-	$(call hex2bin,bank3/B3)
-
-bank3/B3.HEX: \
 	$(COMRELS) \
 	$(B3RELS) \
 	bank3/b3.rel \
@@ -481,7 +456,7 @@ bank3/B3.HEX: \
 	bank0/40ff.rel
 
 	$(call print_linking,"bank 3")
-	@$(LK80) --working-dir bank3 --symbols-file B3.SYM --output-file B3.HEX \
+	@$(LK80) --working-dir bank3 --symbols-file B3.SYM --output-file B3.BIN \
 			--code 4000h ../codes.rel ../kvar.rel ../data.rel ../bank0/doshead.rel ../bank0/40ff.rel b3.rel dos1ker.rel \
 			--code 7700h ../drv.rel \
 			--code 7fd0h ../chgbnk.rel
@@ -509,25 +484,15 @@ bank4/ramdrvh.rel: \
 
 	$(call assemble,bank4/ramdrvh.mac)
 
-bank4/B4.BIN: \
-	bank4/B4.HEX
-
-	$(call hex2bin,bank4/B4)
-
 bank4/B4RD.BIN: \
-	bank4/B4RD.HEX
-
-	$(call hex2bin,bank4/B4RD)
-
-bank4/B4RD.HEX: \
 	bank4/ramdrvh.rel \
 	bank4/b4rdlabs.inc
 
 	$(call print_linking,"bank 4 B4RD")
-	@$(LK80) --working-dir bank4 --symbols-file B4RD.SYM --output-file B4RD.HEX \
+	@$(LK80) --working-dir bank4 --symbols-file B4RD.SYM --output-file B4RD.BIN \
 			--code 4080h ramdrvh.rel
 
-bank4/B4.HEX bank4/B4.SYM: \
+bank4/B4.BIN bank4/B4.SYM: \
 	$(COMRELS) \
 	$(B4RELS) \
 	bank4/b4.rel \
@@ -536,7 +501,7 @@ bank4/B4.HEX bank4/B4.SYM: \
 	bank2/b2labels.inc \
 
 	$(call print_linking,"bank 4")
-	@$(LK80) --working-dir bank4 --symbols-file B4.SYM --output-file B4.HEX \
+	@$(LK80) --working-dir bank4 --symbols-file B4.SYM --output-file B4.BIN \
 			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b4.rel jump.rel env.rel cpm.rel partit.rel ramdrv.rel time.rel seg.rel misc.rel \
 			--code 7BC0h dskab.rel \
 			--code 7fd0h ../chgbnk.rel
@@ -545,32 +510,22 @@ bank4/B4.HEX bank4/B4.SYM: \
 ###  Banks 5 and 6 (FDISK)
 
 bank5/B5.BIN: \
-	bank5/B5.HEX
-
-	$(call hex2bin,bank5/B5)
-
-bank5/B5.HEX: \
 	$(COMRELS) \
 	$(B5RELS) \
 	bank0/40ff.rel
 
 	$(call print_linking,"bank 5")
-	@$(LK80) --working-dir bank5 --symbols-file B5.SYM --output-file B5.HEX \
+	@$(LK80) --working-dir bank5 --symbols-file B5.SYM --output-file B5.BIN \
 			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b5.rel \
 			--code 7fd0h ../chgbnk.rel
 
 bank6/B6.BIN: \
-	bank6/B6.HEX
-
-	$(call hex2bin,bank6/B6)
-
-bank6/B6.HEX: \
 	$(COMRELS) \
 	$(B6RELS) \
 	bank0/40ff.rel
 
 	$(call print_linking,"bank 6")
-	@$(LK80) --working-dir bank6 --symbols-file B6.SYM --output-file B6.HEX \
+	@$(LK80) --working-dir bank6 --symbols-file B6.SYM --output-file B6.BIN \
 			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b6.rel \
 			--code 7fd0h ../chgbnk.rel
 
@@ -591,7 +546,7 @@ bank5/fdisk.dat bank5/fdisk2.dat: \
 
 	sdcc -o bank5/ --code-loc 0x4120 --data-loc 0x8020 -mz80 --disable-warning 196 --disable-warning 84 --disable-warning 85 \
 	     --max-allocs-per-node 1000 --allow-unsafe-read --opt-code-size --no-std-crt0 bank5/fdisk_crt0.rel $(patsubst %.dat,%.c,$@)
-	$(call hex2bin_full,$(patsubst %.dat,%.ihx,$@),$@)
+	$(call hex2bin,$(patsubst %.dat,%.ihx,$@),$@)
 
 bank5/fdisk_crt0.rel: \
 	bank5/fdisk_crt0.s
