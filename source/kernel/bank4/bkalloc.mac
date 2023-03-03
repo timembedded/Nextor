@@ -1,4 +1,5 @@
 	.z80
+	name('bkalloc')
 	title	MSX-DOS 2 KERNEL   Copyright (1986)  IS Systems Ltd.
 	subttl	Block memory allocation
 ;******************************************************************************

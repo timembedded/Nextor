@@ -1,4 +1,5 @@
 	.z80
+	name('del')
 	TITLE	MSX-DOS KERNEL  Copyright (1986)  IS Systems Ltd.
 	SUBTTL	Delete, Rename, Move, Attribute and Date/Time Routines
 ;******************************************************************************

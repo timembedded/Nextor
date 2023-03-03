@@ -14,6 +14,7 @@
 
 
 	.Z80
+	name('dos1ker')
 	;ASEG
 	;ORG	04100H
 

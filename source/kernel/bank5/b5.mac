@@ -1,4 +1,5 @@
 	.z80
+	name('b5')
 BANK	equ	5
 ;
 	include	../bank.inc

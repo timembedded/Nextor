@@ -29,17 +29,9 @@ echo ****************
 echo .
 
 cd bank0
-copy ..\codes.rel
-copy ..\kvar.rel
-copy ..\data.rel
-copy ..\rel.rel
-copy ..\chgbnk.rel
-copy ..\drv.rel
-for %%A in (DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV) do cpm32 M80 =%%A
-cpm32 l80 /p:4000,CODES,KVAR,DATA,REL,DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV,/p:7700,drv,/p:7fd0,chgbnk,b0/n/x/y/e
+for %%A in (DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV) do CPM32 M80 =%%A
+CPM32 L80 /p:4000,CODES,KVAR,DATA,REL,DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV,/p:7700,drv,/p:7fd0,chgbnk,b0/n/x/y/e
 hex2bin b0.hex
-..\SymToEqus b0.sym b0labels.inc "\?[^ \t]+|DOSV0|GETERR|BDOSE|KDERR|KABR|C4PBK"
-..\SymToEqus b0.sym b0lab_b3.inc "INIT|TIMINT|MAPBIO|GWRK|R_[^ \t]+"
 
 echo .
 echo ****************
@@ -48,15 +40,8 @@ echo ****************
 echo .
 
 cd ..\bank1
-copy ..\codes.rel
-copy ..\kvar.rel
-copy ..\data.rel
-copy ..\chgbnk.rel
-copy ..\bank0\alloc.rel
-copy ..\bank0\b0labels.inc
-copy ..\calbnk.rel
-for %%A in (B1,DOSINIT,MAPINIT,MSG) do cpm32 M80 =%%A
-cpm32 L80 /P:40FF,CODES,KVAR,DATA,B1,DOSINIT,MAPINIT,ALLOC,MSG,/p:7fd0,chgbnk,B1/N/X/Y/E
+for %%A in (B1,DOSINIT,MAPINIT,MSG) do CPM32 M80 =%%A
+CPM2 L80 /P:40FF,CODES,KVAR,DATA,B1,DOSINIT,MAPINIT,ALLOC,MSG,/p:7fd0,chgbnk,B1/N/X/Y/E
 hex2bin -s 4000 b1.hex
 
 echo .

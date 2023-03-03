@@ -1,4 +1,5 @@
 	.z80
+	name('err')
 	TITLE	MSX-DOS 2 KERNEL   Copyright (1986)  IS Systems Ltd.
 	SUBTTL	Error handling
 ;******************************************************************************

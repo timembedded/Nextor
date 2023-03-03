@@ -1,4 +1,5 @@
     .z80
+    name('dskab')
 
 ; Disk error handler and abort hooks for page 4.
 ; See KABJ and KDERJ at the end of bank0/drv.mac

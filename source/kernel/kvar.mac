@@ -1,4 +1,5 @@
 	.z80
+	name('kvar')
 	title	MSX-DOS 2 KERNEL   Copyright (1986)  IS Systems Ltd.
 	subttl	Variable and Constants Declarations
 	.sall

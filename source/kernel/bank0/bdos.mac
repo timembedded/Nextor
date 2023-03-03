@@ -1,4 +1,5 @@
 	.z80
+	name('bdos')
 	title	MSX-DOS 2 ROM   Copyright (1986)  IS Systems Ltd.
 	subttl	MSX Environment Setup and BDOS Entry Code
 ;*****************************************************************************

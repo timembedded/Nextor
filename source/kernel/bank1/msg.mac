@@ -1,4 +1,5 @@
 ﻿	.z80
+	name('msg')
 	title	MSX-DOS 2 ROM   Copyright (1986)  IS Systems Ltd.
 	subttl	Messages for disk ROM
 ;-----------------------------------------------------------------------------

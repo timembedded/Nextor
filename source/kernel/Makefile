@@ -4,11 +4,25 @@
 # See the "all" main rule for some handy aliases to generate specific ROMs
 # (e.g. you can run "make base" or "make ide").
 
+# The N80 and LK80 binaries to use can be overriden with environment variables, e.g.:
+# N80=/path/to/N80 make
+
+
 VERSION := 2.1.1
 
 export X80_COMMAND_LINE=-t -nb
 
-export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case lower
+ifeq ($(strip $(N80)),)
+N80=N80
+endif
+
+export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case lower --link-80-compatibility
+
+ifeq ($(strip $(LK80)),)
+LK80=LK80
+endif
+
+export LK80_ARGS=--no-show-banner --verbosity 0 --output-file-case lower --output-format hex
 
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
@@ -29,14 +43,17 @@ endef
 
 define assemble
 	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
-	@N80 $(1) $$ $(2)
+	@$(N80) $(1) $$ $(2)
 endef
 
 define assemble_as
 	@printf "\n\033[0;36mAssembling %s as %s\033[0m\n\n" $(1) $(2)
-	@N80 $(1) $(2) $(3)
+	@$(N80) $(1) $(2) $(3)
 endef
 
+define print_linking
+	@printf "\n\033[0;36mLinking %s\033[0m\n\n" $(1)
+endef
 
 
 ###################
@@ -45,7 +62,7 @@ endef
 
 all: base ide ide-masteronly ide-emu ide-masteronly-emu ascii8 ascii16 mfrsd flashjacks ocm
 
-TOOLS := N80 L80 LIB80 objcopy sdcc mknexrom dd
+TOOLS := $(N80) $(LK80) LIB80 objcopy sdcc mknexrom dd
 
 .phony: prerequisites
 
@@ -78,7 +95,7 @@ drivers/SunriseIDE/Nextor-$(VERSION).SunriseIDE.ROM: \
 	drivers/SunriseIDE/sunride.bin \
 	drivers/SunriseIDE/chgbnk.bin
 
-	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.BIN /m:drivers/SunriseIDE/chgbnk.bin
+	mknexrom nextor_base.dat $@ /d:drivers/SunriseIDE/sunride.bin /m:drivers/SunriseIDE/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 drivers/SunriseIDE/sunride.bin: \
@@ -363,7 +380,11 @@ bank0/B0.HEX bank0/B0.SYM: \
 	drv.rel \
 	rel.rel
 
-	L80 -w bank0 -p .. /p:4000,CODES,KVAR,DATA,REL,DOSHEAD,40FF,B0,INIT,ALLOC,DSKBASIC,DOSBOOT,BDOS,RAMDRV,/p:7700,DRV,/p:7fd0,CHGBNK,b0/n/x/y/e
+	$(call print_linking,"bank 0")
+	@$(LK80) --working-dir bank0 --symbols-file B0.SYM --output-file B0.HEX \
+			--code 4000h ../codes.rel ../kvar.rel ../data.rel ../rel.rel doshead.rel 40ff.rel b0.rel init.rel alloc.rel dskbasic.rel dosboot.rel bdos.rel ramdrv.rel \
+			--code 7700h ../drv.rel \
+			--code 7fd0h ../chgbnk.rel
 	$(call hex2bin,bank0/B0)
 
 bank0/b0labels.inc: \
@@ -398,7 +419,10 @@ bank1/B1.HEX: \
 	bank0/alloc.rel \
 	bank0/b0labels.inc
 
-	L80 -w bank1 -p ..,../bank0 /P:40FF,CODES,KVAR,DATA,B1,DOSINIT,MAPINIT,ALLOC,MSG,/p:7fd0,CHGBNK,B1/N/X/Y/E
+	$(call print_linking,"bank 1")
+	@$(LK80) --working-dir bank1 --symbols-file B1.SYM --output-file B1.HEX \
+			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b1.rel dosinit.rel mapinit.rel ../bank0/alloc.rel msg.rel \
+			--code 7fd0h ../chgbnk.rel
 
 
 ###  Bank 2
@@ -423,7 +447,11 @@ bank2/B2.HEX bank2/B2.SYM: \
 	LIB80 -w bank2 TEMP21=char.rel,dev.rel,kbios.rel,misc.rel,seg.rel/E
 	LIB80 -w bank2 TEMP22=path.rel,find.rel,dir.rel,handles.rel,del.rel,rw.rel,files.rel/E
 	LIB80 -w bank2 TEMP23=buf.rel,fat.rel,val.rel,err.rel/E
-	L80 -w bank2 -p .. /P:40FF,CODES,KVAR,DATA,B2,KINIT,TEMP21,TEMP22,TEMP23,/p:7fd0,CHGBNK,B2/N/X/Y/E
+
+	$(call print_linking,"bank 2")
+	@$(LK80) --working-dir bank2 --symbols-file B2.SYM --output-file B2.HEX \
+			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b2.rel kinit.rel TEMP21.REL TEMP22.REL TEMP23.REL \
+			--code 7fd0h ../chgbnk.rel
 
 bank2/b2labels.inc: \
 	bank2/B2.SYM
@@ -452,7 +480,11 @@ bank3/B3.HEX: \
 	bank0/doshead.rel \
 	bank0/40ff.rel
 
-	L80 -w bank3 -p ..,../bank0 /p:4000,CODES,KVAR,DATA,DOSHEAD,40FF,B3,DOS1KER,/p:7700,drv,/p:7fd0,CHGBNK,B3/N/X/Y/E
+	$(call print_linking,"bank 3")
+	@$(LK80) --working-dir bank3 --symbols-file B3.SYM --output-file B3.HEX \
+			--code 4000h ../codes.rel ../kvar.rel ../data.rel ../bank0/doshead.rel ../bank0/40ff.rel b3.rel dos1ker.rel \
+			--code 7700h ../drv.rel \
+			--code 7fd0h ../chgbnk.rel
 
 
 ###  Bank 4
@@ -491,7 +523,9 @@ bank4/B4RD.HEX: \
 	bank4/ramdrvh.rel \
 	bank4/b4rdlabs.inc
 
-	L80 -w bank4 -p .. /P:4080,RAMDRVH,B4RD/N/X/Y/E
+	$(call print_linking,"bank 4 B4RD")
+	@$(LK80) --working-dir bank4 --symbols-file B4RD.SYM --output-file B4RD.HEX \
+			--code 4080h ramdrvh.rel
 
 bank4/B4.HEX bank4/B4.SYM: \
 	$(COMRELS) \
@@ -501,7 +535,11 @@ bank4/B4.HEX bank4/B4.SYM: \
 	bank0/b0labels.inc \
 	bank2/b2labels.inc \
 
-	L80 -w bank4 -p ..,../bank0,../bank2 /P:40FF,CODES,KVAR,DATA,B4,JUMP,ENV,CPM,PARTIT,RAMDRV,TIME,SEG,MISC,/p:7bc0,DSKAB,/p:7fd0,CHGBNK,B4/N/X/Y/E
+	$(call print_linking,"bank 4")
+	@$(LK80) --working-dir bank4 --symbols-file B4.SYM --output-file B4.HEX \
+			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b4.rel jump.rel env.rel cpm.rel partit.rel ramdrv.rel time.rel seg.rel misc.rel \
+			--code 7BC0h dskab.rel \
+			--code 7fd0h ../chgbnk.rel
 
 
 ###  Banks 5 and 6 (FDISK)
@@ -516,7 +554,10 @@ bank5/B5.HEX: \
 	$(B5RELS) \
 	bank0/40ff.rel
 
-	L80 -w bank5 -p .. /P:40FF,CODES,KVAR,DATA,B5,/p:7fd0,CHGBNK,B5/N/X/Y/E
+	$(call print_linking,"bank 5")
+	@$(LK80) --working-dir bank5 --symbols-file B5.SYM --output-file B5.HEX \
+			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b5.rel \
+			--code 7fd0h ../chgbnk.rel
 
 bank6/B6.BIN: \
 	bank6/B6.HEX
@@ -528,7 +569,10 @@ bank6/B6.HEX: \
 	$(B6RELS) \
 	bank0/40ff.rel
 
-	L80 -w bank6 -p .. /P:40FF,CODES,KVAR,DATA,B6,/p:7fd0,CHGBNK,B6/N/X/Y/E
+	$(call print_linking,"bank 6")
+	@$(LK80) --working-dir bank6 --symbols-file B6.SYM --output-file B6.HEX \
+			--code 40FFh ../codes.rel ../kvar.rel ../data.rel b6.rel \
+			--code 7fd0h ../chgbnk.rel
 
 bank5/fdisk.dat bank5/fdisk2.dat: \
 	bank5/fdisk_crt0.rel \

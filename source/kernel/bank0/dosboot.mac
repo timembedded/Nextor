@@ -1,4 +1,5 @@
 	.z80
+	name('dosboot')
 	title	MSX-DOS 2 ROM   Copyright (1986)  IS Systems Ltd.
 	subttl	MSX-DOS Booting up code
 ;-----------------------------------------------------------------------------

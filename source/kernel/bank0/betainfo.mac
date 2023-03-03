@@ -1,3 +1,5 @@
+name('betainfo')
+
 if ALPHA gt 0
 	defb	" alpha ",ALPHA+"0",ALPHAL," "
 endif
