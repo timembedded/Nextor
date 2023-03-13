@@ -24,6 +24,12 @@ endif
 
 export LK80_ARGS=--no-show-banner --verbosity 0 --output-file-case lower --output-format bin
 
+ifeq ($(strip $(LB80)),)
+LB80=LB80
+endif
+
+export LB80_ARGS=--no-show-banner --verbosity 0
+
 define SymToEqus
     $(eval REGEX:=([0-9A-F]{4}) ($(3)))
     cat $(1) | grep -Eo "$(REGEX)" | sed -r "s/$(REGEX)/\2 equ \1h\n\tpublic \2\n/g" > $(2)
@@ -58,7 +64,7 @@ endef
 
 all: base ide ide-masteronly ide-emu ide-masteronly-emu ascii8 ascii16 mfrsd flashjacks ocm
 
-TOOLS := $(N80) $(LK80) LIB80 objcopy sdcc mknexrom dd
+TOOLS := $(N80) $(LK80) $(LB80) objcopy sdcc mknexrom dd
 
 .phony: prerequisites
 
@@ -424,9 +430,9 @@ bank2/B2.BIN bank2/B2.SYM: \
 	bank2/b2.rel \
 	bank0/b0labels.inc
 
-	LIB80 -w bank2 TEMP21=char.rel,dev.rel,kbios.rel,misc.rel,seg.rel/E
-	LIB80 -w bank2 TEMP22=path.rel,find.rel,dir.rel,handles.rel,del.rel,rw.rel,files.rel/E
-	LIB80 -w bank2 TEMP23=buf.rel,fat.rel,val.rel,err.rel/E
+	@$(LB80) --working-dir bank2 create TEMP21.REL char.rel dev.rel kbios.rel misc.rel seg.rel
+	@$(LB80) --working-dir bank2 create TEMP22.REL path.rel find.rel dir.rel handles.rel del.rel rw.rel files.rel
+	@$(LB80) --working-dir bank2 create TEMP23.REL buf.rel fat.rel val.rel err.rel
 
 	$(call print_linking,"bank 2")
 	@$(LK80) --working-dir bank2 --symbols-file B2.SYM --output-file B2.BIN \
