@@ -2,12 +2,17 @@
 
 # The generated NEXTOR.SYS and NEXTOR.SYS.japanese files are copied to the bin/tools directory.
 
-export X80_COMMAND_LINE=-t -nb
+ifeq ($(strip $(N80)),)
+N80=N80
+endif
+
 export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case lower --include-directory ../../kernel
 
-define hex2bin
-    objcopy -I ihex -O binary $(1) $(2)
-endef
+ifeq ($(strip $(LK80)),)
+LK80=LK80
+endif
+
+export LK80_ARGS=--no-show-banner --verbosity 0 --output-file-case lower --output-format bin
 
 define copy_to_bin
 	cp $(1) ../../../bin/tools/$(2)
@@ -15,14 +20,14 @@ endef
 
 define assemble
 	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
-	@N80 $(1) $(2)
+	@$(N80) $(1) $(2)
 endef
 
 nextor-sys: NEXTOR.SYS NEXTORK.SYS
 
 .phony: prerequisites
 
-TOOLS := N80 L80 objcopy
+TOOLS := N80 LK80 objcopy
 
 prerequisites:
 	@mkdir -p ../../../bin/tools
@@ -42,8 +47,7 @@ NEXTOR.SYS: \
 	sys.mac
 
 	$(call assemble,sys.mac,--define-symbols NO_J_MSG)
-	L80 /P:100,CODES,DATA,RELOC,VER,REF,SYS,REAL,SYS,MESSAGES,END,NEXTOR/n/x/y/e
-	$(call hex2bin,NEXTOR.HEX,NEXTOR.SYS)
+	@$(LK80) --output-file NEXTOR.SYS --code 0100h codes.rel data.rel reloc.rel ver.rel ref.rel sys.rel real.rel sys.rel messages.rel end.rel
 	$(call copy_to_bin,NEXTOR.SYS)
 
 NEXTORK.SYS: \
@@ -53,9 +57,8 @@ NEXTORK.SYS: \
 	sys.mac
 
 	$(call assemble,sys.mac)
-	L80 /P:100,CODES,DATA,RELOC,VER,REF,SYS,REAL,SYS,MESSAGES,KMSG,END,NEXTORK/n/x/y/e
-	$(call hex2bin,NEXTORK.HEX,NEXTORK.SYS)
-	$(call copy_to_bin,NEXTORK.SYS,NEXTOR.SYS.japanese)
+	@$(LK80) --output-file NEXTOR.SYS.japanese --code 0100h codes.rel data.rel reloc.rel ver.rel ref.rel sys.rel real.rel sys.rel messages.rel kmsg.rel end.rel
+	$(call copy_to_bin,NEXTOR.SYS.japanese)
 
 .SECONDEXPANSION:
 $(JRELS): \
@@ -80,4 +83,3 @@ data.rel: \
 
 clean:
 	for ext in BIN HEX REL rel SYM; do find . -type f -name "*.$$ext" -delete; done
-	rm -f USEKMSG.MAC

@@ -1,5 +1,6 @@
 ﻿	.Z80
 ;
+	name('KMSG')
 	TITLE	MSX-DOS 2 - MSX-DOS.SYS copyright (1986) IS Systems Ltd
 	SUBTTL	Sample Messages File (Kanji)
 ;

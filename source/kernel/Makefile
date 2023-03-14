@@ -10,8 +10,6 @@
 
 VERSION := 2.1.1
 
-export X80_COMMAND_LINE=-t -nb
-
 ifeq ($(strip $(N80)),)
 N80=N80
 endif
