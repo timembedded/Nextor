@@ -362,7 +362,7 @@ size	macro	name
 	field	1,FIB_ATTR	;Attributes byte
 	field	2,FIB_TIME	;Last modified time
 	field	2,FIB_DATE	;Last modified date
-	field	2,FIB_CLU	;Start cluster number
+	field	2,FIB_CLUSTER	;Start cluster number
 	field	4,FIB_SIZE	;File size
 	field	1,FIB_DRV	;Logical drive number (never zero)
 ;

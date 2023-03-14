@@ -2521,10 +2521,10 @@ CDRV_NODOS1:
 	;    in place when the function was called; otherwise
 	;    that TPA segment could be uninitialized.
 
-	ld a,(PS_BDO##)
+	ld a,(PS_BDOS##)
 	and 11b
 	ld b,a ;Main slot number
-	ld a,(SS_BDO##)
+	ld a,(SS_BDOS##)
 	rla
 	rla
 	and 1100b
@@ -3367,7 +3367,7 @@ MF_OK_SIZE:
 
 	;* Check if cluster chain is consecutive
 
-	ld a,(ix+FIB_DRIVE##)
+	ld a,(ix+FIB_DRV##)
 	ld e,(ix+FIB_CLUSTER##)
 	ld d,(ix+FIB_CLUSTER##+1)
 	push hl
@@ -4338,7 +4338,7 @@ MAPDRV_OKLUN:
 
 	or	a
 	jr	nz,MAPDRV_NOPRIM
-	ld	a,(MASTER##)
+	ld	a,(MASTER_SLOT##)
 	ld	e,a
 MAPDRV_NOPRIM:
 

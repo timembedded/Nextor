@@ -16,7 +16,7 @@ ifeq ($(strip $(N80)),)
 N80=N80
 endif
 
-export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case lower --link-80-compatibility
+export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case lower
 
 ifeq ($(strip $(LK80)),)
 LK80=LK80

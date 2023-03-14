@@ -780,7 +780,7 @@ kbdos_table:
 	dw	f_invalid		; 61h (define abort routine)
 	dw	f_invalid		; 62h (define error routine)
 	dw	?F_ERROR## -OFFSET	;Get previous error code
-	dw	?F_EXPLAI##-OFFSET	;Explain error code
+	dw	?F_EXPLAIN##-OFFSET	;Explain error code
 ;
 	dw	?F_FMT##   -OFFSET	;Format a disk
 	dw	F_RAMD##			;Create or destroy RAMdisk
