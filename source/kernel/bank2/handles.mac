@@ -1027,7 +1027,7 @@ no_handle_match:xor	a			;If there is no match then
 ;	     B = Parent process id (if A=0)
 ;
 ;
-		ld	hl,MAX_HAND##+1		;Allocate another file handle
+		ld	hl,MAX_FILE_HANDLES##+1		;Allocate another file handle
 		add	hl,hl			; vector and give up if not
 		pcall	ALL_P2			; enough memory.
 		ret	nz
@@ -1042,7 +1042,7 @@ no_handle_match:xor	a			;If there is no match then
 		jr	z,no_inheritance	; to inherit anything.
 ;
 		inc	de
-		ld	b,MAX_HAND##		;Loop to duplicate any file
+		ld	b,MAX_FILE_HANDLES##		;Loop to duplicate any file
 inherit_loop:	push	bc			; handles which want to be
 		inc	hl			; inherited.
 		inc	de
@@ -1176,7 +1176,7 @@ close_hand_lp1:	pop	hl			;Get pointer to next "freed
 		ld	d,(hl)			; "freed vector".
 		push	de
 
-		ld	b,MAX_HAND##
+		ld	b,MAX_FILE_HANDLES##
 close_hand_lp2:	inc	hl
 		ld	e,(hl)			;Walk through this file
 		inc	hl			; handle vector looking
@@ -1325,7 +1325,7 @@ FIND_HANDLE_B:
 ;
 ;
 		ld	a,b			;Return with carry clear
-		cp	MAX_HAND##		; if file handle number is
+		cp	MAX_FILE_HANDLES##		; if file handle number is
 		jr	nc,find_hand_inv	; totally stupid
 ;
 		ld	hl,(HANDLES##)		;Also return NC if there

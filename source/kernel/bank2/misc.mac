@@ -826,7 +826,7 @@ got_buf_bc:	set	7,d
 ;              B = Current number of buffers
 ;
 		ld	a,b			;Don't do anything if too
-		cp	MIN_BUFS##		; few buffers requested.
+		cp	MIN_SECTOR_BUFFERS##		; few buffers requested.
 		jr	c,buffers_done
 ;
 alter_buf_loop:	ld	a,b			;See how many buffer we have
@@ -990,13 +990,13 @@ dont_set_dchk:
 		cp	0CDh
 		jr	nz,DOSVER2
 
-		ld	ix,256 + NXTVER##
-		ld	iy,256*NXTV_HI## + NXTV_LO##
+		ld	ix,256 + MAIN_NEXTOR_VERSION##
+		ld	iy,256*SEC_NEXTOR_VERSION_HIGH## + SEC_NEXTOR_VERSION_LOW##
 		ld	hl,DOSV0##
 DOSVER2:
 
-		ld	b,DOSVER##
-		ld	c,DOSV_LO##+16*DOSV_HI##
+		ld	b,MAIN_DOS_VERSION##
+		ld	c,SEC_DOS_VERSION_LOW##+16*SEC_DOS_VERSION_HIGH##
 		xor	a
 		ld	d,a
 		ld	e,a

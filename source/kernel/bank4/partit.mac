@@ -600,7 +600,7 @@ AUTODRV_DRVLOOP:
 	ld a,iyl
 	ld	(ix+UD1_SLOT##),a		;Set slot number in table entry
 	ld	a,c
-    ld  (ix+UD1_REL##),a    
+    ld  (ix+UD1_RELATIVE_DRIVE##),a    
 	push	af
 	xor a
 	push	bc
@@ -628,10 +628,10 @@ AUTODRV_DRVL1:
 	pop ix
 	push ix
 	ld a,-1
-	ld (ix+UD1_FSEC##),a
-	ld (ix+UD1_FSEC##+1),a
-	ld (ix+UD1_FSEC##+2),a
-	ld (ix+UD1_FSEC##+3),a
+	ld (ix+UD1_FIRST_ABSOLUTE_SECTOR##),a
+	ld (ix+UD1_FIRST_ABSOLUTE_SECTOR##+1),a
+	ld (ix+UD1_FIRST_ABSOLUTE_SECTOR##+2),a
+	ld (ix+UD1_FIRST_ABSOLUTE_SECTOR##+3),a
 
 	inc a
 	jr AUTODRV_DRVL3
@@ -1002,13 +1002,13 @@ AA_CHKDUP_LOOP1:
 	cp	(ix+AAD_DRIVER_SLOT)
 	jr	nz,AA_CHKDUP_NEXT1
 
-	ld	a,(iy+UD1_DI##)
+	ld	a,(iy+UD1_DEVICE_INDEX##)
 	or	a			;If device index is 0, it is an unused table entry
 	jr	z,AA_CHKDUP_NEXT1
 	cp	d
 	jr	nz,AA_CHKDUP_NEXT1
 	
-	ld	a,(iy+UD1_LI##)		;Check LUN index
+	ld	a,(iy+UD1_LUN_INDEX##)		;Check LUN index
 	cp	e
 	jr	nz,AA_CHKDUP_NEXT1
 
@@ -1486,17 +1486,17 @@ AA_DO_ASSIGN:
 
 AA_DO_ASSDOS1:
 	ld	a,(ix+AAD_LOOP_DEV_INDEX)
-	ld	(iy+UD1_DI##),a
+	ld	(iy+UD1_DEVICE_INDEX##),a
 	ld	a,(ix+AAD_LOOP_LUN_INDEX)
-	ld	(iy+UD1_LI##),a
+	ld	(iy+UD1_LUN_INDEX##),a
     ld  l,(ix+AAD_CAND_PART_SECTOR)
     ld  h,(ix+AAD_CAND_PART_SECTOR+1)
-	ld	(iy+UD1_FSEC##),l
-	ld	(iy+UD1_FSEC##+1),h
+	ld	(iy+UD1_FIRST_ABSOLUTE_SECTOR##),l
+	ld	(iy+UD1_FIRST_ABSOLUTE_SECTOR##+1),h
     ld  l,(ix+AAD_CAND_PART_SECTOR+2)
     ld  h,(ix+AAD_CAND_PART_SECTOR+3)
-	ld	(iy+UD1_FSEC##+2),l
-	ld	(iy+UD1_FSEC##+3),h
+	ld	(iy+UD1_FIRST_ABSOLUTE_SECTOR##+2),l
+	ld	(iy+UD1_FIRST_ABSOLUTE_SECTOR##+3),h
 
 	xor	a
 	ret
@@ -3636,7 +3636,7 @@ MAPDOS1_DPBOK:
 	or	a
 	jr	nz,MAPDOS1_NOUNMAP
 
-	ld	(ix+UD1_DI##),0	;Set device index to 0
+	ld	(ix+UD1_DEVICE_INDEX##),0	;Set device index to 0
 	
 	jp	MAPDOS1_END_OK
 MAPDOS1_NOUNMAP:
@@ -3659,7 +3659,7 @@ MAPDOS1_DEF:
 
 	push hl
 	push ix
-	ld c,(ix+UD1_REL##)
+	ld c,(ix+UD1_RELATIVE_DRIVE##)
 	res	7,c	;Ignore "media changed" flag
 	ld	b,1
     xor a
@@ -3672,14 +3672,14 @@ MAPDOS1_DEF:
 	jr z,MAPDOS1_DEF_NOCFG
 
 	ld a,0FFh
-	ld	(ix+UD1_FSEC##),a
-	ld	(ix+UD1_FSEC##+1),a
-	ld	(ix+UD1_FSEC##+2),a
-	ld	(ix+UD1_FSEC##+3),a
+	ld	(ix+UD1_FIRST_ABSOLUTE_SECTOR##),a
+	ld	(ix+UD1_FIRST_ABSOLUTE_SECTOR##+1),a
+	ld	(ix+UD1_FIRST_ABSOLUTE_SECTOR##+2),a
+	ld	(ix+UD1_FIRST_ABSOLUTE_SECTOR##+3),a
 	jr  MAPDOS1_DEF_OK
 
 MAPDOS1_DEF_NOCFG:	;No config provided by driver, use AUTO_ASSIGN
-	ld	(ix+UD1_DI##),0	;At the moment leave the drive unmapped
+	ld	(ix+UD1_DEVICE_INDEX##),0	;At the moment leave the drive unmapped
 	push hl
 	push ix
 	pop hl
@@ -3696,8 +3696,8 @@ if 0
 
 	push	hl
 	ld	l,(ix)	;Driver slot
-	ld	h,(ix+UD1_REL##)	;Relative unit
-	ld	(ix+UD1_DI##),0	;At the moment leave the drive unmapped
+	ld	h,(ix+UD1_RELATIVE_DRIVE##)	;Relative unit
+	ld	(ix+UD1_DEVICE_INDEX##),0	;At the moment leave the drive unmapped
 	pop	ix			;Use FAT buffer for the fake unit descriptor
 	ld	(ix+UD_SLOT##),l
 	ld	(ix+UD_PHYSICAL_UNIT##),h
@@ -3851,7 +3851,7 @@ MAPDOS1_CHK_NEXT:
 	ld	(ix+7),a
 
 MAPDOS1_END_OK:
-	set	7,(ix+UD1_REL##)	;Set partition changed flag
+	set	7,(ix+UD1_RELATIVE_DRIVE##)	;Set partition changed flag
 	ld	hl,0FFFFh
 	ld	(0F23Fh),hl	;Make sector buffer invalid
 	ld	a,h
@@ -3905,7 +3905,7 @@ CLOSE_HANDLES:
 	ld	c,(ix+UD_PHYSICAL_UNIT##)
 
 	ld	hl,(HANDLES##)
-	ld	b,MAX_HAND##
+	ld	b,MAX_FILE_HANDLES##
 	ld	a,h
 	or	l
 	jr	z,CLOSE_HANDLES_END
@@ -4160,8 +4160,8 @@ IDRVR_RET:
 	cp	0CDh
 	jr	nz,DOSV1_2
 
-	ld	ix,256 + NXTVER##
-	ld	iy,256*NXTV_HI## + NXTV_LO##
+	ld	ix,256 + MAIN_NEXTOR_VERSION##
+	ld	iy,256*SEC_NEXTOR_VERSION_HIGH## + SEC_NEXTOR_VERSION_LOW##
 	ld	bc,0100h
 	ld	a,1
 	ld	de,0
@@ -6224,9 +6224,9 @@ ASK_DRIVE_CONFIG:
 	set UF_DBD,(ix+UD_DFLAGS##)
 	jr ASKDRVCFG_NEXT
 ASKDRVCFG_DOS1:
-	ld (ix+UD1_REL##),l
-	ld (ix+UD1_DI##),b
-	ld (ix+UD1_LI##),c
+	ld (ix+UD1_RELATIVE_DRIVE##),l
+	ld (ix+UD1_DEVICE_INDEX##),b
+	ld (ix+UD1_LUN_INDEX##),c
 ASKDRVCFG_NEXT:
 
 	push hl ;H=DOS mode

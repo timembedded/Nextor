@@ -860,7 +860,7 @@ CHECK_MNT:
 ; done  internally  by  the  "BUILD_UPB"  routine.  It first calls VAL_SAME to
 ; ensure that the correct disk is in the drive and then  does  the  operation.
 ; Any  error  from  the operation will be returned to the caller.  The UD_TIME
-; field will be set to UD_TMOUT to start the MEDIA CHECK timeout going again.
+; field will be set to UD_MEDIA_CHECK_TIMEOUT to start the MEDIA CHECK timeout going again.
 ;
 ; Entry:        HL = Address of unit descriptor
 ;		 A = Command code (RD_CMD or WR_CMD)
@@ -879,7 +879,7 @@ if 1
 		call	UD_TICK			;Make UD_TIME up to date.
 endif
 		ex	(sp),ix			; maximum value since unit
-		ld	(ix+UD_TIME##),UD_TMOUT##; has just been accessed.  If
+		ld	(ix+UD_TIME##),UD_MEDIA_CHECK_TIMEOUT##; has just been accessed.  If
 		ex	(sp),ix			; DISK_ERR is called then this
 		pop	hl			; will be set back to 1.
 ;

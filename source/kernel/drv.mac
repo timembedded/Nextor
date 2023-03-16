@@ -313,7 +313,7 @@ DIO_ENTRY::
 	call	IS_DVB
 	jp	nc,DIO_ENTRY_DO
 
-	ld	a,(iy+UD1_DI##)
+	ld	a,(iy+UD1_DEVICE_INDEX##)
 	or	a
 	jp	z,DISKERR
 
@@ -412,14 +412,14 @@ DIOEN3:
 	ld	(KSLOT##),a	;KSLOT=1 -> device-based
 
 	push	hl
-	ld	l,(iy+UD1_FSEC##)
-	ld	h,(iy+UD1_FSEC##+1)
+	ld	l,(iy+UD1_FIRST_ABSOLUTE_SECTOR##)
+	ld	h,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+1)
 	add	hl,de
 	ld	ix,TMP_SEC##
 	ld	(ix),l	;Calculate absolute sector number
 	ld	(ix+1),h
-	ld	l,(iy+UD1_FSEC##+2)
-	ld	h,(iy+UD1_FSEC##+3)
+	ld	l,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+2)
+	ld	h,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+3)
 	ld	de,0
 	adc	hl,de
 	ld	(ix+2),l
@@ -427,9 +427,9 @@ DIOEN3:
 	pop	hl		;Restore transfer address
 	ld	de,TMP_SEC##
 	
-	ld	c,(iy+UD1_LI##) ;Set LUN index
+	ld	c,(iy+UD1_LUN_INDEX##) ;Set LUN index
 	pop	af                   ;From here Cy must be kept untouched
-	ld	a,(iy+UD1_DI##) ;Set device index
+	ld	a,(iy+UD1_DEVICE_INDEX##) ;Set device index
 	jr	DIO_ENTRY_DO_2
 
 		
@@ -624,7 +624,7 @@ CHG_ENTRY::
 	jp	nc,DO_CALBNK
 
 	ld	d,a
-	ld	a,(iy+UD1_DI##)
+	ld	a,(iy+UD1_DEVICE_INDEX##)
 	or	a
 	jp	z,DISKERR
 
@@ -656,9 +656,9 @@ CHGEN_NOEMU:
 	;Drive-based mapping:
 	;Return "changed" if partition has changed, "unchanged" otherwise
 
-	ld	a,(iy+UD1_REL##)
+	ld	a,(iy+UD1_RELATIVE_DRIVE##)
 	ld	c,a
-	res	7,(iy+UD1_REL##)
+	res	7,(iy+UD1_RELATIVE_DRIVE##)
 	and	10000000b	;Check partition changed flag
 	ld	b,-1
 	ld	a,c
@@ -696,17 +696,17 @@ DO_MKDPB:
 
 DPBEN2:
 	push	hl
-	ld	a,(iy+UD1_FSEC##)
+	ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##)
 	ld	(TMP_SEC##),a
-	ld	a,(iy+UD1_FSEC##+1)
+	ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+1)
 	ld	(TMP_SEC##+1),a
-	ld	a,(iy+UD1_FSEC##+2)
+	ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+2)
 	ld	(TMP_SEC##+2),a
-	ld	a,(iy+UD1_FSEC##+3)
+	ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+3)
 	ld	(TMP_SEC##+3),a
-	ld	a,(iy+UD1_DI##)
+	ld	a,(iy+UD1_DEVICE_INDEX##)
 	ld	b,1
-	ld	c,(iy+UD1_LI##)
+	ld	c,(iy+UD1_LUN_INDEX##)
 	ld	de,TMP_SEC##
 	ld	hl,($SECBUF##)
 	or	a
@@ -840,7 +840,7 @@ IS_DVB_LOOP:
 	pop bc	
 	jr	nz,DIO_NEXT
 
-	ld	a,(iy+UD1_REL##)
+	ld	a,(iy+UD1_RELATIVE_DRIVE##)
 	and	01111111b	;Ignore partition changed flag
 	cp	c
 	jr	nz,DIO_NEXT
@@ -889,10 +889,10 @@ IS_EMU:
 ; Return A=0, Z if partition assigned; A<>0, NZ if NO partition assigned.
 
 HAS_PARTITION:
-	ld	a,(iy+UD1_FSEC##)  ;No partition assigned
-	and	(iy+UD1_FSEC##+1)  ;if sector number is -1
-	and	(iy+UD1_FSEC##+2)
-	and	(iy+UD1_FSEC##+3)
+	ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##)  ;No partition assigned
+	and	(iy+UD1_FIRST_ABSOLUTE_SECTOR##+1)  ;if sector number is -1
+	and	(iy+UD1_FIRST_ABSOLUTE_SECTOR##+2)
+	and	(iy+UD1_FIRST_ABSOLUTE_SECTOR##+3)
 	inc	a
 	jr	z,RET_NZ
 	xor	a
@@ -925,8 +925,8 @@ ASSIGN_PARTITION:
 	pop hl
 	push hl
 
-	ld b,(iy+UD1_DI##)
-	ld c,(iy+UD1_LI##)
+	ld b,(iy+UD1_DEVICE_INDEX##)
+	ld c,(iy+UD1_LUN_INDEX##)
 	ld a,4
     ld d,0
 	ld	ix,AUTO_ASPART##
@@ -953,9 +953,9 @@ READ_BOOT:
 	ld	de,0
 	ld	(TMP_SEC##),de
 	ld	(TMP_SEC##+2),de
-	ld	a,(iy+UD1_DI##)
+	ld	a,(iy+UD1_DEVICE_INDEX##)
 	ld	b,1
-	ld	c,(iy+UD1_LI##)
+	ld	c,(iy+UD1_LUN_INDEX##)
 	ld	de,TMP_SEC##
 	ld	hl,($SECBUF##)
 	or	a

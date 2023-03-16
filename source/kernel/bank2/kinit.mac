@@ -212,7 +212,7 @@ link_dev_done:
 ;
 ;	+++++  SETUP SECTOR BUFFER CHAIN  +++++
 ;
-		ld	b,DEF_BUFS##		;Allocate the default number
+		ld	b,DEFAULT_SECTOR_BUFFERS##		;Allocate the default number
 		pcall	F_BUFFER		; of sector buffers.
 ;
 ;	+++++  INITIALISE FILE HANDLE SYSTEM  +++++

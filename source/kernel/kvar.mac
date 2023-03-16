@@ -21,26 +21,26 @@
 ;
 ;
 ;===== start mod DOS2.50 (change version number)
-	const	DOSVER,2	;Major version number
-	const	DOSV_HI,3	;Minor version number, high nybble
-	const	DOSV_LO,1	;Minor version number, low nybble
-	const	NXTVER,2
-	const	NXTV_HI,1
-	const	NXTV_LO,1
+	const	MAIN_DOS_VERSION,2	;Major version number
+	const	SEC_DOS_VERSION_HIGH,3	;Minor version number, high nybble
+	const	SEC_DOS_VERSION_LOW,1	;Minor version number, low nybble
+	const	MAIN_NEXTOR_VERSION,2
+	const	SEC_NEXTOR_VERSION_HIGH,1
+	const	SEC_NEXTOR_VERSION_LOW,1
 ;===== end mod DOS2.50
 ;
 ;
-	const	MIN_BUFS,2	;Minimum number of sector buffers
-	const	DEF_BUFS,5	;Default number of sector buffers
-	const	MAX_HAND,63	;Number of file handles per process
+	const	MIN_SECTOR_BUFFERS,2       ;Minimum number of sector buffers
+	const	DEFAULT_SECTOR_BUFFERS,5   ;Default number of sector buffers
+	const	MAX_FILE_HANDLES,63        ;Number of file handles per process
 ;
-	const	UD_TMOUT,5+2	;Timeout for media check calls (100ms units)
-				; (+2 is because UD_TIME is only decremented
-				;  down to 2, not to zero).
-	const	CH_TMOUT,1+1	;Timeout for screen buffer (100ms units)
-				; (+1 is because CH_COUNT is only decremented
-				;  down to 1, not to zero).
-	const	ST_TMOUT,100+1	;Timeout counter for console status checks
+	const	UD_MEDIA_CHECK_TIMEOUT,5+2	;Timeout for media check calls (100ms units)
+                                        ; (+2 is because UD_TIME is only decremented
+                                        ;  down to 2, not to zero).
+	const	SCREEN_BUFFER_TIMEOUT,1+1	;Timeout for screen buffer (100ms units)
+                                        ; (+1 is because CH_COUNT is only decremented
+                                        ;  down to 1, not to zero).
+	const	CONSOLE_STATUS_CHECK_TIMEOUT,100+1  ;Timeout counter for console status checks
 ;
 ;
 ;*****************************************************************************
@@ -173,7 +173,7 @@ size	macro	name
 ;
 	field	1,UD_PHYSICAL_UNIT	;Physical unit number.
 	field	1,UD_TIME	;Down counter decremented every interrupt
-				;  and set back to UD_TMOUT whenever the unit
+				;  and set back to UD_MEDIA_CHECK_TIMEOUT whenever the unit
 				;  is accessed.
 				;  0 => No UPB defined (don't decrement)
 				;  1 => UPB must be verified (don't decrement)
@@ -236,14 +236,14 @@ size	macro	name
 
 	ifield	0		;Start at offset zero
 ;
-	field	1,UD1_SLOT	;Slot address of appropriate disk driver
-	field	1,UD1_REL	;Relative unit number
-	                    ;bit 7 is set if partition has changed
-	field   1,UD1_DI	;Device index
-	field   1,UD1_LI    ;LUN index
-	field   4,UD1_FSEC	;First absolute sector number
+	field	1,UD1_SLOT            ;Slot address of appropriate disk driver
+	field	1,UD1_RELATIVE_DRIVE  ;Relative unit number
+                                  ;bit 7 is set if partition has changed
+	field   1,UD1_DEVICE_INDEX    ;Device index
+	field   1,UD1_LUN_INDEX       ;LUN index
+	field   4,UD1_FIRST_ABSOLUTE_SECTOR  ;First absolute sector number
 
-    size	UD1_SZ		;Total size of unit descriptor
+    size	UD1_SIZE              ;Total size of unit descriptor
 
 ;-----------------------------------------------------------------------------
 ;

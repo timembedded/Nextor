@@ -166,10 +166,10 @@ endif
 _$DOSVER::
 DOSV0::
 	defb	"Nextor kernel version "
-	defb	NXTVER##+"0", ".", NXTV_HI##+"0" 
+	defb	MAIN_NEXTOR_VERSION##+"0", ".", SEC_NEXTOR_VERSION_HIGH##+"0" 
 	
 	if 1
-	defb ".", NXTV_LO##+"0"
+	defb ".", SEC_NEXTOR_VERSION_LOW##+"0"
 	endif
 
 	INCLUDE betainfo.mac
@@ -985,7 +985,7 @@ VER_CHK:
 	ld	a,(NXT_VER##)	;If previous master is MSX-DOS (not Nextor) then I become master.
 	or	a
 	jr	z,MAST_OK
-	cp	16*NXTVER##+NXTV_HI##	;If old master is same or newer than I
+	cp	16*MAIN_NEXTOR_VERSION##+SEC_NEXTOR_VERSION_HIGH##	;If old master is same or newer than I
 	jr	nc,SLAVE	; become its slave.
 ;
 MAST_OK:
@@ -1004,9 +1004,9 @@ OVERRIDE:
 ;
 ;	I am the real master or am overriding the old one.
 ;
-	ld	a,99h		;16*DOSVER##+DOSV_HI##
+	ld	a,99h		;16*DOSVER##+SEC_DOS_VERSION_HIGH##
 	ld	(DOS_VER##),a	;set new DOS version
-	ld	a,16*NXTVER##+NXTV_HI##
+	ld	a,16*MAIN_NEXTOR_VERSION##+SEC_NEXTOR_VERSION_HIGH##
 	ld	(NXT_VER##),a
 ;
 ;	Set up hook for clean up procedure
