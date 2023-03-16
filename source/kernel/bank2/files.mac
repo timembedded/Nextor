@@ -848,12 +848,12 @@ DECODE_PTR:
 ; Entry:           HL = Pointer to unit descriptor
 ;	      D:E:B:C = File pointer value
 ; Returns:          A = If Z-flag clear (NZ) - Error code (.FILE)
-;			   Z-flag set (Z) - Sector within cluster (0..UD_CMSK)
+;			   Z-flag set (Z) - Sector within cluster (0..UD_CLUSTER_MASK)
 ;		   BC = Byte offset within sector (0...1FFh)
 ;		   DE = Logical cluster number (0...07FFFh)
 ; Corrupts:   AF,BC,DE
 ;
-; Assumes:    UD_CSHFT=UD_CMSK+1
+; Assumes:    UD_CLUSTER_SHIFT=UD_CLUSTER_MASK+1
 ;
 ;
 		push	hl
@@ -866,7 +866,7 @@ DECODE_PTR:
 		rl	b			; into B and save it for
 		push	bc			; returning.
 ;
-		ld	bc,UD_CMSK##
+		ld	bc,UD_CLUSTER_MASK##
 		add	hl,bc			;Get cluster mask from unit
 		push	af			; descriptor and mask with
 		and	(hl)			; logical sector to get start

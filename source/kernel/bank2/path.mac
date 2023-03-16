@@ -575,7 +575,7 @@ FIRST_DIR:
 ;	       HL = Address of validated unit descriptor
 ; Corrupts:   AF,DE,HL
 ;
-; Assumes:     UD_PATH=UD_CDIR+2
+; Assumes:     UD_CURRENT_DIR_PATH=UD_CURRENT_DIR_FIRST_CLUSTER+2
 ;
 ;
 		push	bc
@@ -591,7 +591,7 @@ FIRST_DIR:
 		bit	PC_ROOT,(iy+@PC_FLAGS##);Skip if root directory
 		jr	nz,start_root_nz	; is required.
 ;
-		ld	de,UD_CDIR##		;Get current directory cluster
+		ld	de,UD_CURRENT_DIR_FIRST_CLUSTER##		;Get current directory cluster
 		add	hl,de			; number from unit descriptor.
 		ld	e,(hl)
 		inc	hl
@@ -611,7 +611,7 @@ FIRST_DIR:
 ;
 		ld	bc,(STR_PTR##)		;Save string pointer
 		push	bc
-		push	hl			;Save UD_CDIR pointer
+		push	hl			;Save UD_CURRENT_DIR_FIRST_CLUSTER pointer
 ;
 		ld	a,d			;If cluster is known (<>0) then
 		or	e			; clear flag to suppress disk
@@ -620,7 +620,7 @@ FIRST_DIR:
 relocate_dir:
 		inc	hl			;Set string pointer to point
 		ld	(STR_PTR##),hl		; to current directory string.
-		ld	bc,-UD_PATH##
+		ld	bc,-UD_CURRENT_DIR_PATH##
 		add	hl,bc			;Point back at unit descr.
 		push	de
 		call	start_root		;Start at root directory

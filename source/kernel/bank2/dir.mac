@@ -80,7 +80,7 @@ no_chk_clu:	pop	hl
 ;		   NZ => entry in use, or deleted
 ; Corrupts:    AF,DE
 ;
-; Assumes:     UD_WDS=UD_ODE+1    UD_SDIR=UD_WDS+2
+; Assumes:     UD_WHOLE_DIR_SECTORS=UD_ODD_DIR_ENTRIES+1    UD_FIRST_ROOT_DIR_SECTOR=UD_WHOLE_DIR_SECTORS+2
 ;
 ;
 						;Get first directory cluster
@@ -102,7 +102,7 @@ no_chk_clu:	pop	hl
 ;===== end add FAT16
 		push	bc			;Save user's BC
 		push	hl
-		ld	bc,UD_ODE##
+		ld	bc,UD_ODD_DIR_ENTRIES##
 		add	hl,bc
 		ld	c,(hl)			;C := number of odd entries
 		inc	hl			;     in last directory sector
@@ -246,7 +246,7 @@ SUB_DI_FIRST:	push	bc
 ;===== end add FAT16
 ;
 		ex	de,hl
-		ld	hl,UD_CMSK##		;Get UD_CMSK+1 from unit
+		ld	hl,UD_CLUSTER_MASK##		;Get UD_CLUSTER_MASK+1 from unit
 		add	hl,de			; descriptor which will be
 		ld	a,(hl)			; recorded as number of sectors
 		inc	a			; in this cluster.

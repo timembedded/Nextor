@@ -25,7 +25,7 @@ warn    macro   text
 ;
 error   macro   text
 	 if1
-	  .printx % text
+	  .error text
 	 endif
 	endm
 ;

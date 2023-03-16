@@ -1883,7 +1883,7 @@ if 1 ;v2.30
 ;
 		push	hl
 		push	bc
-		ld	hl,UD_ID##		;Return with no match if it is
+		ld	hl,UD_VOLUME_ID##		;Return with no match if it is
 		add	hl,de			; not the same volume id.
 		ex	de,hl			;DE -> volume id of UD.
 		push	ix

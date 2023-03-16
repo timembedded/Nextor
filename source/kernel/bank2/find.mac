@@ -63,7 +63,7 @@ null_path:	db	0			;Null string for parsing
 		ld	a,.IPATH##		; after pathname.
 		ret	nz
 ;
-		ld	bc,UD_CDIR##
+		ld	bc,UD_CURRENT_DIR_FIRST_CLUSTER##
 		add	hl,bc
 		ld	de,(DE_START##)		;Get the validated cluster
 		ld	(hl),e			; number for the new directory
@@ -270,7 +270,7 @@ find_fib:	push	hl			;Save ASCIIZ filename pointer
 ;
 		push	bc
 		push	hl			;Copy the volume-id from the
-		ld	bc,UD_ID##		; unit descriptor to the
+		ld	bc,UD_VOLUME_ID##		; unit descriptor to the
 		add	hl,bc			; new fileinfo block.
 		push	ix
 		pop	de
@@ -441,14 +441,14 @@ MOCF_LOOP:
 	pop	iy		;IY = Unit descriptor
 	bit	UF_MNT,(iy+UD_FLAGS##)
 	jr	z,MOCF_NEXT
-	ld	a,(iy+UD_DRV##)
+	ld	a,(iy+UD_MOUNT_DRIVE##)
 	inc	a
 	cp	(ix+25)
 	jr	nz,MOCF_NEXT
-	ld	a,(iy+UD_SCLU##)
+	ld	a,(iy+UD_MOUNT_START_CLUSTER##)
 	cp	(ix+19)
 	jr	nz,MOCF_NEXT
-	ld	a,(iy+UD_SCLU##+1)
+	ld	a,(iy+UD_MOUNT_START_CLUSTER##+1)
 	cp	(ix+20)
 	jr	nz,MOCF_NEXT
 

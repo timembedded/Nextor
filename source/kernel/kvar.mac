@@ -148,8 +148,8 @@ size	macro	name
 ;
 	field	1,UD_SLOT	;Slot address of appropriate disk driver
 	field	0,UD_OFFSET	;Offset to entry table of disk driver (for drive-based drivers)
-	field	1,UD_DI		;Device index (for device-based drivers)
-	field	2,UD_DPB	;Address of MSX DPB in system RAM
+	field	1,UD_DEVICE_INDEX   ;Device index (for device-based drivers)
+	field	2,UD_DPB_ADDRESS    ;Address of MSX DPB in system RAM
 	field	1,UD_FLAGS	;Various flags for the unit:
 				;        bit 0: disk is FAT12
 				;        bit 1: disk is FAT16
@@ -164,65 +164,65 @@ size	macro	name
                 ;        bit 1: the device supports hot-plug (ignored)
                 ;        bit 2: the drive is removable
 				;        bit 3: partition assignment is pending for this drive
-				;        bit 4: value at UD_FSEC is valid
+				;        bit 4: value at UD_FIRST_DEVICE_SECTOR is valid
 				;               (so that BUILD_UPB will not auto-assign partition)
 				;        bit 5: value at UD_CHKSUM is valid
 ;
-	field	1,UD_LI		;LUN index (for device-based drivers)
-	field	1,UD_SEG	;Segment number for RAM based drivers, FFh for ROM based drivers
+	field	1,UD_LUN_INDEX		;LUN index (for device-based drivers)
+	field	1,UD_RAM_SEGMENT	;Segment number for RAM based drivers, FFh for ROM based drivers
 ;
-	field	1,UD_PHYS	;Physical unit number.
+	field	1,UD_PHYSICAL_UNIT	;Physical unit number.
 	field	1,UD_TIME	;Down counter decremented every interrupt
 				;  and set back to UD_TMOUT whenever the unit
 				;  is accessed.
 				;  0 => No UPB defined (don't decrement)
 				;  1 => UPB must be verified (don't decrement)
 				;  2 => Timeout expired (don't decrement)
-	field	1,UD_CMSK	;Cluster mask
-	field	1,UD_CSHFT	;Cluster shift
-	field	2,UD_RES	;Reserved sectors
-	field	1,UD_NFAT	;Number of FAT's
-	field	1,UD_ODE	;Odd directory entries (0...0Fh)
-	field	1,UD_WDS	;Whole directory sectors
-	field	1,UD_SFAT	;Sectors per FAT
-	field	2,UD_SDIR	;First root directory sector
-	field	2,UD_SDAT	;First data sector
-	field	2,UD_NCLU	;Total number of clusters
+	field	1,UD_CLUSTER_MASK       ;Cluster mask
+	field	1,UD_CLUSTER_SHIFT      ;Cluster shift
+	field	2,UD_RESERVED_SECTORS   ;Reserved sectors
+	field	1,UD_NUMBER_OF_FATS     ;Number of FAT's
+	field	1,UD_ODD_DIR_ENTRIES    ;Odd directory entries (0...0Fh)
+	field	1,UD_WHOLE_DIR_SECTORS  ;Whole directory sectors
+	field	1,UD_SECTORS_PER_FAT    ;Sectors per FAT
+	field	2,UD_FIRST_ROOT_DIR_SECTOR  ;First root directory sector
+	field	2,UD_FIRST_DATA_SECTOR  ;First data sector
+	field	2,UD_CLUSTER_COUNT      ;Total number of clusters
 ;
-	field	1,UD_DIRT	;Dirty disk flag
-	field	4,UD_ID		;Current volume ID
-	field	1,UD_MBYTE	;Media descriptor byte
+	field	1,UD_DIRTY_DISK_FLAG    ;Dirty disk flag
+	field	4,UD_VOLUME_ID          ;Current volume ID
+	field	1,UD_MEDIA_DESC_BYTE    ;Media descriptor byte
 
-	field	2,UD_CDIR	;First cluster of current directory
+	field	2,UD_CURRENT_DIR_FIRST_CLUSTER	;First cluster of current directory
 				;  -ve   => root directory
 				;  0000h => cluster not known
-	field	64,UD_PATH	;Current directory path
-	field	2,UD_RDCLUS	;Reduced total number of clusters
+	field	64,UD_CURRENT_DIR_PATH	;Current directory path
+	field	2,UD_REDUCED_CLUSTER_COUNT	;Reduced total number of clusters
 
-	field	4,UD_FSEC	;First device sector (only for block devices on device-based drivers)
+	field	4,UD_FIRST_DEVICE_SECTOR	;First device sector (only for block devices on device-based drivers)
 
 	field	2,UD_CHKSUM
     
-	field	1,UD_REL	;Relative unit number for unit handler
-                        ;(for device-based drivers this is only used if the driver
-						; provides configuration, in order to get the default mapping
-						; for the drive)
-	field   2,UD_ACLU	;Next cluster to check for allocation -1
+	field	1,UD_RELATIVE_UNIT_NUMBER   ;Relative unit number for unit handler
+                                        ;(for device-based drivers this is only used if the driver
+                                        ; provides configuration, in order to get the default mapping
+                                        ; for the drive)
+	field   2,UD_ALLOCATION_CLUSTER	;Next cluster to check for allocation -1
 
 ;
 	;--- Extra fields used when mounting files
 	;    This extra space should NOT be allocated unless a file is mounted to the drive
 
-    field 1,UD_MFLAGS   ;Flags. Bit 0: read-only mount
-    field 1,UD_DRV      ;Drive where the mounted file is
-	field 2,UD_MXS		;Maximum sector number
-	field 2,UD_SCLU		;Start cluster (used to check if file is already mounted)
-	field 3,UD_SSEC		;Start sector relative to the drive where the mounted file is
-	field 13,UD_MNAME   ;File name
+    field 1,UD_MOUNT_FLAGS          ;Flags. Bit 0: read-only mount
+    field 1,UD_MOUNT_DRIVE          ;Drive where the mounted file is
+	field 2,UD_MOUNT_MAX_SECTOR     ;Maximum sector number
+	field 2,UD_MOUNT_START_CLUSTER  ;Start cluster (used to check if file is already mounted)
+	field 3,UD_MOUNT_FIRST_DRIVE_SECTOR	;Start sector relative to the drive where the mounted file is
+	field 13,UD_MOUNT_FILENAME      ;File name
 
-	size	UD_MSZ		;Total size of unit descriptor including extra fields
+	size	UD_SIZE_WITH_MOUNT		;Total size of unit descriptor including extra fields
 
-	const	UD_SZ,UD_MSZ-22	;Total size of unit descriptor without extra fields
+	const	UD_SIZE,UD_SIZE_WITH_MOUNT-22	;Total size of unit descriptor without extra fields
 
 
 ;*****************************************************************************

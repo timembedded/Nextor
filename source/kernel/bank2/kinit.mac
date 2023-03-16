@@ -301,7 +301,7 @@ INIT_UNITS:
 ;   This routine creates and  initialises  all  the  unit  descriptors  for  a
 ; particular disk driver (including the RAM disk). A pointer to the MSX DPB is
 ; put in the unit descriptor.  The unit descriptor has its UD_SLOT, UD_OFFSET,
-; UD_DPB,  UD_REL and UD_PHYS fields set up and UD_CDIR is set -ve to indicate
+; UD_DPB_ADDRESS,  UD_RELATIVE_UNIT_NUMBER and UD_PHYSICAL_UNIT fields set up and UD_CURRENT_DIR_FIRST_CLUSTER is set -ve to indicate
 ; the root directory.  The rest of the unit descriptor is zeroed.   A  pointer
 ; to  the unit descriptor is store in the appropriate place in UNIT_TAB unless
 ; it is the RAM unit being initialised (physical unit zero) in which  case  it
@@ -321,7 +321,7 @@ INIT_UNITS:
 init_unit_loop:	ex	af,af'
 		push	hl			;Save entry table offset
 ;
-		ld	hl,UD_SZ##		;Allocate RAM for a unit
+		ld	hl,UD_SIZE##		;Allocate RAM for a unit
 		call	ALL_P2			; descriptor.
 		jr	nz,init_unit_fail	;Error if not enough RAM.
 		ex	de,hl			;Get UD address into DE and
@@ -334,18 +334,18 @@ init_unit_loop:	ex	af,af'
 		ld	b,(hl)			; pointer for next one.
 		inc	hl
 		push	hl			;Save new DPB pointer address
-		ld	(ix+UD_DPB##),c		;Store a pointer to the DPB
-		ld	(ix+UD_DPB##+1),b	; in the unit descriptor.
+		ld	(ix+UD_DPB_ADDRESS##),c		;Store a pointer to the DPB
+		ld	(ix+UD_DPB_ADDRESS##+1),b	; in the unit descriptor.
 ;
 		ld	a,(bc)			;Get physical unit number
 		inc	a			; from DPB and store it in
-		ld	(ix+UD_PHYS##),a	; unit descriptor after
+		ld	(ix+UD_PHYSICAL_UNIT##),a	; unit descriptor after
 		ld	l,a			; adjusting it.
 		ld	h,0			;HL := unit number (1...8)
 ;
 		inc	bc			;Get media descriptor from
 		ld	a,(bc)			; DPB and store it in the
-		ld	(ix+UD_MBYTE##),a	; unit descriptor.
+		ld	(ix+UD_MEDIA_DESC_BYTE##),a	; unit descriptor.
 ;
 		ld	bc,RM_UD##		;If physical unit is non-zero
 		jr	z,init_ramunit		; (ie. not RAM disk) then
@@ -364,14 +364,14 @@ init_ramunit:	add	hl,hl			; UNIT_TAB depending on the
 		ld	(ix+UD_OFFSET##),l	;  ..  entry table offset
 ;
 		ex	af,af'
-		ld	(ix+UD_REL##),a		;Store relative unit number
+		ld	(ix+UD_RELATIVE_UNIT_NUMBER##),a		;Store relative unit number
 		inc	a			; and increment for next time.
-		ld	(ix+UD_CDIR##+1),0FFh	;set current dir -ve => root
+		ld	(ix+UD_CURRENT_DIR_FIRST_CLUSTER##+1),0FFh	;set current dir -ve => root
 ;===== start add FAT16 (01BDh patch)
-		ld	(ix+UD_CDIR##),0FFh
+		ld	(ix+UD_CURRENT_DIR_FIRST_CLUSTER##),0FFh
 ;===== end add FAT16
 ;
-		ld	(ix+UD_SEG##),0FFh
+		ld	(ix+UD_RAM_SEGMENT##),0FFh
 		djnz	init_unit_loop		;Loop for next unit
 		xor	a
 		ret				;Return with no error

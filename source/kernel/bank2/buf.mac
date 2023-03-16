@@ -13,7 +13,7 @@
 ;   This routine gets a given sector from a given unit number into  a  buffer.
 ; It  has  two  entry  points, one for normal sectors and one for FAT sectors.
 ; The FAT sector entry point ("BF_FAT_SECTOR") sets up the number of copies to
-; read  to  UD_NFAT  if  the disk is clean and UD_NFAT-1 if the disk is dirty.
+; read  to  UD_NUMBER_OF_FATS  if  the disk is clean and UD_NUMBER_OF_FATS-1 if the disk is dirty.
 ; The normal sector entry point ("BF_SECTOR") always sets the number of copies
 ; to one.
 ;
@@ -52,8 +52,8 @@
 		ld	bc,0100h		;B = Flag read required & no ignore / C = 0 (sector number (bit16-22))
 ;;		ld	b,1
 ;===== end mod FAT16
-		ld	a,(ix+UD_NFAT##)	;If disk is clean then set
-		bit	0,(ix+UD_DIRT##)	; number of copies to UD_NFAT
+		ld	a,(ix+UD_NUMBER_OF_FATS##)	;If disk is clean then set
+		bit	0,(ix+UD_DIRTY_DISK_FLAG##)	; number of copies to UD_NUMBER_OF_FATS
 		jr	z,bf_a_copies		; (all copies of the FAT).
 		dec	a			;If dirty disk, read one less
 		jr	nz,bf_a_copies		; copy, unless there is only
@@ -77,8 +77,8 @@ bf_a_copies:	ld	(READ_COPIES##),a	;Remember number of copies
 		ld	a,h
 		sub	1			;If cache<>0 then test if it
 		ld	a,c			;A := sector number (bit16-22)
-		ld	c,(ix+UD_PHYS##)	;C := physical unit number
-;;		ld	c,(ix+UD_PHYS##)
+		ld	c,(ix+UD_PHYSICAL_UNIT##)	;C := physical unit number
+;;		ld	c,(ix+UD_PHYSICAL_UNIT##)
 ;;		ld	hl,(B_CACHE##)
 ;;		ld	a,h
 ;;		sub	1
@@ -90,7 +90,7 @@ bf_a_copies:	ld	(READ_COPIES##),a	;Remember number of copies
 		push	hl			; save this address in case
 						; sector not found.
 ;===== start mod FAT16 (support BUF_1/BUF_2/SECNUM/REDBUF patch)
-bf_sector_loop:	ld	c,(ix+UD_PHYS##)	;C := physical unit number
+bf_sector_loop:	ld	c,(ix+UD_PHYSICAL_UNIT##)	;C := physical unit number
 		call	BF_CMP			;See if this buffer has the
 ;;bf_sector_loop:call	BF_CMP
 ;===== end mod FAT16
@@ -134,7 +134,7 @@ first_buf_ok:
 		inc	hl
 		inc	hl
 ;===== start mod FAT16 (support BUF_1/BUF_2/SECNUM/REDBUF patch)
-		ld	a,(ix+UD_PHYS##)	;Record physical unit number
+		ld	a,(ix+UD_PHYSICAL_UNIT##)	;Record physical unit number
 		ld	(hl),a
 ;;		ld	(hl),c
 ;===== end mod FAT16
@@ -155,14 +155,14 @@ first_buf_ok:
 		inc	hl
 ;
 ;===== start mod FAT16 (SECNUM/REDBUF patch)
-		ld	a,(ix+UD_SFAT##)	;Record copy separation in
+		ld	a,(ix+UD_SECTORS_PER_FAT##)	;Record copy separation in
 		ld	(hl),a			; buffer descriptor.  This is
 		inc	hl			; just the number of sectors
 						; per FAT.
 		ld	(hl),c			;Record sector number (bit16-22)
 		ld	(iy+@DIO_EX_SECTOR##),c	;DIO_EX_SECTOR := Sector number (bit16-22)
 		ld	c,a
-;;		ld	c,(ix+UD_SFAT##)
+;;		ld	c,(ix+UD_SECTORS_PER_FAT##)
 ;;		ld	(hl),c
 ;;		inc	hl
 ;===== end mod FAT16
@@ -424,7 +424,7 @@ FLG_BUFS:	jr	c,FLG_PHYS		;Skip if drive in A
 ;
 		push	hl
 		push	bc			;Get physical drive number
-		ld	bc,UD_PHYS##		; from unit descriptor.
+		ld	bc,UD_PHYSICAL_UNIT##		; from unit descriptor.
 		add	hl,bc
 		ld	a,(hl)
 		pop	bc
@@ -744,7 +744,7 @@ last_fat_loop:	inc	(hl)		 ; adding BD_COPY*BD_SEP on to it.
 ;;last_fat_loop:add	a,(hl)
 ;;		jr	nc,no_lfat_carry
 ;===== end mod FAT16
-no_lfat_8bit:	inc	d		 ; BD_COPY must be UD_NFAT-1 so that
+no_lfat_8bit:	inc	d		 ; BD_COPY must be UD_NUMBER_OF_FATS-1 so that
 no_lfat_carry:	djnz	last_fat_loop	 ; this points to the last copy of
 		ld	e,a		 ; the FAT sector.
 		ld	b,1		 ;Only write out one copy.
