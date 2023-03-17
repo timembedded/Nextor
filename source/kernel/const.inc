@@ -176,7 +176,7 @@ ATM_ARC equ     (1 SHL AT_ARC)
 ATM_DEV equ     (1 SHL AT_DEV)
 ;
 ;
-;                 BITS IN "FAB_ACC" ACCESS MODE BYTE
+;                 BITS IN "FAB_ACCESS_MODE" ACCESS MODE BYTE
 ;               =====================================
 ;
 AC_WR   equ     0       ;Set => Read only access

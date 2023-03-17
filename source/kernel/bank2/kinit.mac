@@ -179,7 +179,7 @@ link_dev_loop:	ld	a,(hl)			;Look at next device
 		inc	hl
 ;
 		push	hl
-		ld	hl,DD_SZ##		;Allocate RAM for another
+		ld	hl,DD_DESC_SIZE##		;Allocate RAM for another
 		call	ALL_P2			; device descriptor and
 		pop	de			; die if not enough memory.
 		ld	a,6
@@ -194,7 +194,7 @@ kinit_fail_nz:	jr	nz,kinit_fail
 		ldi				;Copy address of device
 		ldi				; handler into descriptor.
 		ex	de,hl
-		ld	bc,DD_MODE##-(DD_NEXT##+4) ;Copy the device flags and
+		ld	bc,DD_MODE##-(DD_NEXT_DESC_ADDRESS##+4) ;Copy the device flags and
 		add	hl,bc			   ; device name into the
 		ex	de,hl			   ; device descriptor.
 		ld	bc,1+8+3

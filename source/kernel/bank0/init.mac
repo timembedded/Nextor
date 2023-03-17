@@ -978,7 +978,7 @@ VER_CHK:
 ;
 ;	I am not the first.  check to see if I can be the new master.
 ;
-	ld	a,(IN_EMU##)	;If in disk emulation mode, disable myself
+	ld	a,(IN_EMU_MODE##)	;If in disk emulation mode, disable myself
 	or	a
 	ret	nz
 
@@ -1060,7 +1060,7 @@ SLAVE:
 	;PROCNM+6: Number of drives actually assigned
 	;PROCNM+7: 1 to boot in DOS 1 mode
 	;PROCNM+8: 1 if device-based driver
-	;IN_EMU: 1 if in disk emulation mode (set by AUTODRV in partit.mac)
+	;IN_EMU_MODE: 1 if in disk emulation mode (set by AUTODRV in partit.mac)
     ;PROCNM+10: <>0 if the driver provides configuration
 
 	;Calculate how many work area space can be allocated, it will be:
@@ -2624,7 +2624,7 @@ CHECK_1KEY:
 ;===== start mod DOS2.50 (build type)
 	jr	nz,OLDDOS	;OLDDOS will do the rest of work.
 
-	ld	a,(IN_EMU##)	;If in disk emulation mode (set by AUTODRV from DOSINIT),
+	ld	a,(IN_EMU_MODE##)	;If in disk emulation mode (set by AUTODRV from DOSINIT),
 	or	a               ;switch to DOS 1 mode
 	jr	nz,OLDDOS
 
@@ -2726,7 +2726,7 @@ endif
 	;the work area is already created in BUF_1,
 	;so just jump to area relocation procedure.
 
-	ld	a,(IN_EMU##)
+	ld	a,(IN_EMU_MODE##)
 	or	a
 	jr	nz,MK_EMU_TBL
 
@@ -2750,7 +2750,7 @@ MK_EMU_TBL:
 	;then just copy from BUF_1 to it.
 	;Otherwise allocate space in page 3.
 
-    ld hl,(EMU_WK_AREA##)
+    ld hl,(EMU_WORK_AREA_ADDRESS##)
 	ld	a,h
 	or	l
 	jr	nz,OK_EMU_WK
@@ -3114,7 +3114,7 @@ VERIFY:	CALLDOS	2Eh	;Set/reset verify flag
 BSEC_TYPE:
 	;1) Check for "VOL_ID", if found, return type 1
 
-	ld	hl,BOOTAD + UPB_VOLID##
+	ld	hl,BOOTAD + UPB_VOLUME_ID##
 	ld	de,VID_STR
 	ld	b,6
 	call	CP_FLSTR
@@ -3123,7 +3123,7 @@ BSEC_TYPE:
 
 	;2) Check for sector count >65535, if so, return type 2
 
-	ld	hl,BOOTAD + UPB_SEC##
+	ld	hl,BOOTAD + UPB_TOTAL_SECTORS##
 	ld	a,(hl)
 	inc	hl
 	or	(hl)
@@ -3132,12 +3132,12 @@ BSEC_TYPE:
 
 	;3) Check for EBS, if found, return type 2
 
-	ld	a,(BOOTAD + UPB_EBS##)
+	ld	a,(BOOTAD + UPB_EXTENDED_SIGNATURE##)
 	and	028h
 	cp	028h
 	jr	nz,NOEBS
 
-	ld	hl,BOOTAD + UPB_FILESYS##
+	ld	hl,BOOTAD + UPB_FILESYSTEM##
 	ld	de,FAT_STR
 	ld	b,4
 	call	CP_FLSTR

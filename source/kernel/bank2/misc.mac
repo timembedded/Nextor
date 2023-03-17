@@ -848,7 +848,7 @@ alter_buf_loop:	ld	a,b			;See how many buffer we have
 		dec	(hl)			;Count one less buffer and
 		jr	alter_buf_loop		; loop to check again.
 ;
-alloc_buffer:	ld	hl,BD_SZ##		;Too few so allocate one more.
+alloc_buffer:	ld	hl,BD_DESC_SIZE##		;Too few so allocate one more.
 		pcall	ALL_P2			;Allocate RAM for the buffer
 		jr	nz,buffers_done		; and stop if out of memory.
 		ld	de,(B_CHAIN##)

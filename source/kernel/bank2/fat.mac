@@ -482,7 +482,7 @@ CLEAN_DISK:
 ; Corrupts:   AF
 ; Preserves:  BC,DE,HL,AF',BC',DE',HL'
 ;
-; Assumes:     BD_UNIT=2
+; Assumes:     BD_PHYSICAL_UNIT_NUMBER=2
 ;
 ;
 		push	hl
@@ -951,7 +951,7 @@ frchlp2:
 
 DTY_ADD:
 	push	bc
-	ld	bc,UPB_EBS##
+	ld	bc,UPB_EXTENDED_SIGNATURE##
 	add	hl,bc
 	pop	bc
 	ld	a,(hl)

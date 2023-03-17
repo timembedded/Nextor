@@ -1299,10 +1299,10 @@ AA_CHECK_BOOT2:
 	ld	a,(DOS_VER##)
 	or	a
 	jr	nz,AA_SPC_OK
-	ld	a,(iy+UPB_SFAT##+1)
+	ld	a,(iy+UPB_SECTORS_PER_FAT##+1)
 	or	a
 	jp	nz,AA_PLOOP_NEXT	;AA_LLOOP_NEXT
-	ld	a,(iy+UPB_SFAT##)
+	ld	a,(iy+UPB_SECTORS_PER_FAT##)
 	cp	4
 	jp	nc,AA_PLOOP_NEXT	;AA_LLOOP_NEXT
 AA_SPC_OK:
@@ -1590,7 +1590,7 @@ AA_DOSEC:
 
 CHECK_FAT_BOOT:
 		ld	hl,($SECBUF##)
-		ld	de,UPB_SSZ##
+		ld	de,UPB_SECTOR_SIZE##
 		add	hl,de
 		ld	d,(hl)			;Sector size must always
 		inc	hl			; be 200h.
@@ -1622,7 +1622,7 @@ CHECK_FAT_BOOT:
 		or	(hl)
 		jr	z,upb_not_found
 
-		ld	de,UPB_SFAT##-(UPB_NDIR##+1);Ignore "total sectors"
+		ld	de,UPB_SECTORS_PER_FAT##-(UPB_NUM_ROOT_DIR_ENTRIES##+1);Ignore "total sectors"
 		add	hl,de			;  and "media byte".
 
 		ld	e,(hl)			;Number of sectors per
@@ -1640,21 +1640,21 @@ CHECK_FAT_BOOT:
 		;* We are in DOS 1: fail if FAT16 or if more than 3 sectors per FAT
 
 		ld	iy,($SECBUF##)
-		ld	e,(iy+UPB_SEC##)
-		ld	d,(iy+UPB_SEC##+1)	;DE=Total sectors
+		ld	e,(iy+UPB_TOTAL_SECTORS##)
+		ld	d,(iy+UPB_TOTAL_SECTORS##+1)	;DE=Total sectors
 		ld	a,d
 		or	e
 		jr	z,upb_not_found		;0 = >32 MB
 
-		ld	a,(iy+UPB_SFAT##+1)
+		ld	a,(iy+UPB_SECTORS_PER_FAT##+1)
 		or	a
 		jr	nz,upb_not_found
-		ld	a,(iy+UPB_SFAT##)
+		ld	a,(iy+UPB_SECTORS_PER_FAT##)
 		cp	4
 		jr	nc,upb_not_found
 
-		ld	c,(iy+UPB_NDIR##)
-		ld	b,(iy+UPB_NDIR##+1)	;BC=Num of root dir entries
+		ld	c,(iy+UPB_NUM_ROOT_DIR_ENTRIES##)
+		ld	b,(iy+UPB_NUM_ROOT_DIR_ENTRIES##+1)	;BC=Num of root dir entries
 		ld	a,c
 		and	11111b
 		ld	hl,0
@@ -1671,13 +1671,13 @@ NO_ODD_ENTRIES:
 		rr	c	
 		add	hl,bc	;HL=Num of root dir sectors
 
-		ld	c,(iy+UPB_RES##)
-		ld	b,(iy+UPB_RES##+1)
+		ld	c,(iy+UPB_RESERVED_SECTORS##)
+		ld	b,(iy+UPB_RESERVED_SECTORS##+1)
 		add	hl,bc	;HL=Root dir sectors + reserved sectors
 
-		ld	a,(iy+UPB_NFAT##)	;A=Number of FATs
-		ld	c,(iy+UPB_SFAT##)	;BC=Sectors per FAT
-		ld	b,(iy+UPB_SFAT##+1)
+		ld	a,(iy+UPB_NUM_FATS##)	;A=Number of FATs
+		ld	c,(iy+UPB_SECTORS_PER_FAT##)	;BC=Sectors per FAT
+		ld	b,(iy+UPB_SECTORS_PER_FAT##+1)
 CALC_SECFAT:
 		add	hl,bc
 		dec	a
@@ -1687,7 +1687,7 @@ CALC_SECFAT:
 		or	a
 		sbc	hl,de	;HL=Total data sectors
 
-		ld	a,(iy+UPB_CS##)	;A = Sectors per cluster (power of 2)
+		ld	a,(iy+UPB_SECTORS_PER_CLUSTER##)	;A = Sectors per cluster (power of 2)
 		rrca
 		jr	c,CALC_CLUS_OK
 CALC_CLUS:
@@ -1728,7 +1728,7 @@ upb_not_found:					;If anything was wrong with
 ; then returns with A=1. The format of the table is defined in kvar.mac (DSK_*).
 ;
 ; The definitve address of the work area as read from the emulation data file is temporarily
-; stored in EMU_WK_AREA, so that either the table it will be moved to this place
+; stored in EMU_WORK_AREA_ADDRESS, so that either the table it will be moved to this place
 ; or, if it is zero, the work area will be properly allocated.
 
 GO_EMU:
@@ -1748,14 +1748,14 @@ GO_EMU:
 	ld	a,c ;Dev
 	and	0Fh
 	or	b
-	ld	(EMU_TMP##+EMU_DEVLUN##),a	;dev+lun of emulation data file
+	ld	(EMU_TMP##+EMU_DEV_AND_LUN##),a	;dev+lun of emulation data file
     pop bc
     pop af
 
 	;--- Read file contents
 
-    ld (EMU_TMP##+EMU_FSEC##),de
-    ld (EMU_TMP##+EMU_FSEC##+2),hl
+    ld (EMU_TMP##+EMU_FILE_FIRST_SECTOR##),de
+    ld (EMU_TMP##+EMU_FILE_FIRST_SECTOR##+2),hl
     ld (TMP_SEC##),de
     ld (TMP_SEC##+2),hl
 	call	AA_RSEC
@@ -1816,16 +1816,16 @@ GOEMU_WAOK:
 	;> Basic data
 
 	ld	a,(ix+18)	;Work area address, low
-	ld	(EMU_WK_AREA##),a
+	ld	(EMU_WORK_AREA_ADDRESS##),a
 	ld	a,(ix+19)	;Work area address, high
-	ld	(EMU_WK_AREA##+1),a
+	ld	(EMU_WORK_AREA_ADDRESS##+1),a
 	ld	a,(ix+16)
-	ld	(iy+DSK_COUNT##),a	;Number of entries in table
+	ld	(iy+DSK_EMULATED_FILES_COUNT##),a	;Number of entries in table
 
 	;> Current file data
 
 	ld	a,(ix+17)	;Boot file index
-	ld	(iy+DSK_IDX##),a
+	ld	(iy+DSK_CURRENT_FILE_INDEX##),a
 	set	7,(iy)
 
     ld c,a
@@ -1847,30 +1847,30 @@ GOEMU_NORUS:
 	push	ix
 	pop	bc
 	add	hl,bc	;HL = Pointer to boot file data
-	ld	de,EMU_TMP##+DSK_DEV##
+	ld	de,EMU_TMP##+DSK_CURRENT_FILE_DEVICE_INDEX##
 	ld	bc,8
 	ldir
 
-    ld a,(iy+DSK_DEV##) ;set DSK_DEV and DSK_LUN as same of data file if 0
+    ld a,(iy+DSK_CURRENT_FILE_DEVICE_INDEX##) ;set DSK_CURRENT_FILE_DEVICE_INDEX and DSK_CURRENT_FILE_LUN_INDEX as same of data file if 0
     or a
     jr nz,GOEMU_END
-    ld a,(iy+EMU_DEVLUN##)
+    ld a,(iy+EMU_DEV_AND_LUN##)
     ld b,a
     and 00000111b
-    ld (iy+DSK_DEV##),a
+    ld (iy+DSK_CURRENT_FILE_DEVICE_INDEX##),a
     ld a,b
     rrca
     rrca
     rrca
     rrca
     and 00000111b
-    ld (iy+DSK_LUN##),a
+    ld (iy+DSK_CURRENT_FILE_LUN_INDEX##),a
 
 	;--- All done
 
 GOEMU_END:
 	ld	a,1
-	ld	(IN_EMU##),a
+	ld	(IN_EMU_MODE##),a
 	ret
 
 EMUDATASIG:  db  "NEXTOR_EMU_DATA",0
@@ -3367,9 +3367,9 @@ MF_OK_SIZE:
 
 	;* Check if cluster chain is consecutive
 
-	ld a,(ix+FIB_DRV##)
-	ld e,(ix+FIB_CLUSTER##)
-	ld d,(ix+FIB_CLUSTER##+1)
+	ld a,(ix+FIB_DRIVE_NUMBER##)
+	ld e,(ix+FIB_START_CLUSTER##)
+	ld d,(ix+FIB_START_CLUSTER##+1)
 	push hl
 	push ix
 	call CLUSQ##
@@ -3427,7 +3427,7 @@ MF_UD_OK:
 
 	;Start cluster
 
-	ld	bc,FIB_CLUSTER##
+	ld	bc,FIB_START_CLUSTER##
 	add	hl,bc	;Now HL points to start cluster in FIB
 	ld	a,(hl)
 	ld	(ix+UD_MOUNT_START_CLUSTER##),a
@@ -3927,7 +3927,7 @@ CLOSE_HANDLES_LOOP:
 	bit	7,a
 	jr	nz,CLOSE_HANDLES_NEXT	;Skip if device file handle
 
-	ld	a,(ix+FAB_DRV##)	;A = drive number (1 = A:, etc)
+	ld	a,(ix+FAB_DRIVE_NUMBER##)	;A = drive number (1 = A:, etc)
 	cp	c
 	jr	nz,CLOSE_HANDLES_NEXT	;Skip if not our drive
 
@@ -3937,7 +3937,7 @@ CLOSE_HANDLES_LOOP:
 	dec	hl
 	pcall	CLOSE_FAB	;See F_CLOSE in handles.mac in bank 2
 	pcall	ENSURE_FAB
-	ld	a,(ix+FAB_DRV##)
+	ld	a,(ix+FAB_DRIVE_NUMBER##)
 	pcall	FL_LOG
 	pop	bc
 	pop	hl

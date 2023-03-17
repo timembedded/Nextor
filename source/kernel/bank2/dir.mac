@@ -32,7 +32,7 @@
 ;
 ;
 		push	hl
-		ld	hl,DR_CLU##		;Get start cluster number from
+		ld	hl,DR_FIRST_CLUSTER##		;Get start cluster number from
 		add	hl,de			; directory entry and jump to
 		ld	e,(hl)			; START_DIR to store it in the
 		inc	hl			; DE_START variable.
@@ -315,7 +315,7 @@ got_dev_entry:
 		push ix				;If it's an used entry and the attributes byte is 0Fh
 		push de             ;then it's along filename entry, so ignore it
 		pop ix				;and go get the next one
-		ld a,(ix+DR_ATTR##)
+		ld a,(ix+DR_ATTRIBUTES##)
 		cp 0Fh
 		jr nz,got_dev_entry_end
 		pop ix
