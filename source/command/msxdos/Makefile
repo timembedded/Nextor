@@ -27,7 +27,7 @@ nextor-sys: NEXTOR.SYS NEXTORK.SYS
 
 .phony: prerequisites
 
-TOOLS := N80 LK80 objcopy
+TOOLS := N80 LK80
 
 prerequisites:
 	@mkdir -p ../../../bin/tools
