@@ -16,7 +16,7 @@ void DosCall(byte function, Z80_registers* regs, register_usage inRegistersDetai
 }
 
 
-void AsmCallAlt(uint address, Z80_registers* regs, register_usage inRegistersDetail, register_usage outRegistersDetail, int alternateAf) __naked
+void AsmCallAlt(uint address, Z80_registers* regs, register_usage inRegistersDetail, register_usage outRegistersDetail, int alternateAf) __naked __sdcccall(0)
 {
 	__asm
 	push    ix

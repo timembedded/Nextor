@@ -1,11 +1,9 @@
 void print(char* s) __naked
 {
     __asm
-    push    ix
-    ld     ix,#4
-    add ix,sp
-    ld  l,(ix)
-    ld  h,1(ix)
+
+    ;HL = *s
+
 loop:
     ld  a,(hl)
     or  a
@@ -18,7 +16,6 @@ loop:
     inc hl
     jr  loop
 end:
-    pop ix
     ret
     __endasm;    
 }

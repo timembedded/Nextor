@@ -1645,15 +1645,9 @@ void PrintStateMessage(char* string)
 void chput(char ch) __naked
 {
     __asm
-    push    ix
-    push iy
-    ld      ix,#6
-    add     ix,sp
-    ld  a,(ix)
-    call CHPUT
-    pop iy
-    pop ix
-    ret
+	;A = ch
+
+	jp CHPUT
     __endasm;
 }
 
@@ -1661,11 +1655,9 @@ void chput(char ch) __naked
 void print(char* string) __naked
 {
 	 __asm
-    push    ix
-    ld      ix,#4
-    add     ix,sp
-    ld  l,(ix)
-	ld	h,1(ix)
+
+	 ;HL = string
+	 
 PRLOOP:
 	ld	a,(hl)
 	or	a
@@ -1674,7 +1666,6 @@ PRLOOP:
 	inc	hl
 	jr	PRLOOP
 PREND:
-    pop ix
     ret
     __endasm;
 }

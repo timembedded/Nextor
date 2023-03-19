@@ -57,6 +57,6 @@ typedef union {
 #define AsmCall(dir, regs, in, out) AsmCallAlt(dir, regs, in, out, 0)
 
 void DosCall(byte function, Z80_registers* regs, register_usage inRegistersDetail, register_usage outRegistersDetail);
-void AsmCallAlt(uint address, Z80_registers* regs, register_usage inRegistersDetail, register_usage outRegistersDetail, int alternateAf);
+void AsmCallAlt(uint address, Z80_registers* regs, register_usage inRegistersDetail, register_usage outRegistersDetail, int alternateAf) __sdcccall(0);
 
 #endif //__ASMCALL_H
