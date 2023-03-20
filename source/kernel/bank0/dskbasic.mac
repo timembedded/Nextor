@@ -1,4 +1,5 @@
 	.z80
+	name('dskbasic')
 	title	DSKBASIC - disk BASIC statement handler -
 ;
 ;	Conditional assembly switches

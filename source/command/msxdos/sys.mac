@@ -1,9 +1,12 @@
+	name('SYS')
 	TITLE	MSX-DOS 2 - MSX-DOS.SYS copyright (1986) IS Systems Ltd.
 	SUBTTL	BDOS and BIOS
 ;
 	.Z80
-	include	MACROS.INC
-	include USEKMSG.MAC
+	include macros.inc
+
+	;NO_J_MSG constant must be defined externally 
+	;when Japanese error messages aren't included in the build.
 ;
 ;
 FALSE	EQU	0
@@ -37,11 +40,6 @@ TEST	EQU	FALSE				; TRUE for testing version.
 START:
 ;
 ;
-CODE	MACRO	OPCODE,ARG
-	 .8080
-	 DB	(OPCODE ARG)
-	 .Z80
-	ENDM
 ;
 ;
 LF	EQU	0AH
@@ -417,7 +415,7 @@ CMDLEN	EQU	$-CMNDM
 ;
 ;
 LDERR:				; Error during re-loading - A=error code.
-	CP	.NOFILE##	; If 'file not found', then suppress error
+	CP	.NOFIL##	; If 'file not found', then suppress error
 	LD	B,A		;   message & just prompt for COMMAND disk.
 	CALL	NZ,DERR
 	CALL	CRLF
@@ -1655,11 +1653,11 @@ DSK_ERR:
 	CALL	DSTR		; Print actual error message.
 	POP	BC		; Get back flags.
 ;
-	LD	A,__READ##	; In case reading.
+	LD	A,__READING##	; In case reading.
 	BIT	0,C
 	JR	Z,RDERR		; Go if reading.
 ;
-	LD	A,__WRITE##	; Else writing.
+	LD	A,__WRITING##	; Else writing.
 RDERR:	PUSH	BC		; Save drive and flags again.
 	CALL	DMSG		; Print 'reading' or 'writing' message.
 	LD	A,__DRIVE##	; Print 'drive'.
@@ -1777,7 +1775,7 @@ DSTR:	LD	A,(DE)		; Get character from message.
 ;
 ;
 MESSAGE:LD	B,A		; B=message number.
-if NOKMSG
+ifdef NO_J_MSG
 	LD	DE,MESSAGES+2	; Point DE to messages table.
 else
 	xor	a

@@ -1,11 +1,12 @@
 	.z80
+	name('mapinit')
 	title	MSX-DOS 2 ROM   Copyright (1986)  IS Systems Ltd.
 	subttl	Mapper Initialisation
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
-	INCLUDE	CONDASM.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
+	INCLUDE	../condasm.inc
 ;
 P0_REG		equ	0FCh
 P1_REG		equ	0FDh

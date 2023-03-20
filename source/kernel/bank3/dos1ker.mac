@@ -14,6 +14,7 @@
 
 
 	.Z80
+	name('dos1ker')
 	;ASEG
 	;ORG	04100H
 
@@ -9056,7 +9057,7 @@ NEW_ERRS:
 	;many games to not work)
 
 ALLFBUF:
-	ld	a,(IN_EMU##)
+	ld	a,(IN_EMU_MODE##)
 	or	a
 	jp	z,A5EC8		;Jump to actual allocation if not in emulation mode...
 

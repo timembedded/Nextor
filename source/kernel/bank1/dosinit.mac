@@ -1,11 +1,12 @@
 	.z80
+	name('dosinit')
 	title	MSX-DOS 2 ROM   Copyright (1986)  IS Systems Ltd.
 	subttl	ROM Resident Part of Kernel Initialisation
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
-	INCLUDE	CONDASM.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
+	INCLUDE	../condasm.inc
 
 MAXDRV	equ	8		;max number of drives supported by disk
 DRVTBL	equ	0FB21h	
@@ -1563,7 +1564,7 @@ _U_CALLRAM:
         ex      af,af
 ...	      < call	_GET_P1 >
         push    af
-        ld_a_iyl
+        ld a,iyl
 ...	      < call	_PUT_P1 >
         ex      af,af
         call    CALSLT##
@@ -1650,7 +1651,7 @@ _U_CALLRAM2:
         dec     ix
         dec     ix
         push    ix
-        ld_iyl_e
+        ld iyl,e
 
         ld      a,d
         and     00111111b
@@ -1674,7 +1675,7 @@ _U_CALLRAM2:
         ld      bc,(MAP_TAB##)
         add     hl,bc
         ld      a,(hl)  ;A = Slot to call
-        ld_iyh_a
+        ld iyh,a
 
         ex      af,af'
         exx

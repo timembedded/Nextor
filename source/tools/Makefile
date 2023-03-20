@@ -3,15 +3,25 @@
 
 # The generated files are copied to the bin/tools directory.
 
-export X80_COMMAND_LINE=-t -nb
-export M80_COMMAND_LINE=-8
+ifeq ($(strip $(N80)),)
+N80=N80
+endif
 
-define hex2bin
-	objcopy -I ihex -O binary $(1) $(2)
-endef
+export N80_ARGS=--no-string-escapes --no-show-banner --build-type rel --verbosity 0 --output-file-case upper --include-directory ../kernel
+
+ifeq ($(strip $(LK80)),)
+LK80=LK80
+endif
+
+export LK80_ARGS=--no-show-banner --verbosity 0 --output-file-case lower --output-format bin
 
 define copy_to_bin
 	cp $(1) ../../bin/tools/$(2)
+endef
+
+define assemble
+	@printf "\n\033[0;36mAssembling %s\033[0m\n\n" $(1)
+	@$(N80) $(1) $(2)
 endef
 
 COMS := CONCLUS.COM DELALL.COM DEVINFO.COM DRIVERS.COM DRVINFO.COM FASTOUT.COM LOCK.COM MAPDRV.COM NSYSVER.COM RALLOC.COM
@@ -22,7 +32,7 @@ asm-tools: $(COMS)
 
 .phony: prerequisites
 
-TOOLS := M80 L80 objcopy
+TOOLS := N80 LK80
 
 prerequisites:
 	@mkdir -p ../../bin/tools
@@ -39,31 +49,29 @@ $(COMS): \
 	DATA.REL \
 	SHARED.REL
 
-	echo $(patsubst %.COM,%.MAC,$@)
-	M80 =$(patsubst %.COM,%,$@)
-	L80 /P:100,CODES,DATA,$(patsubst %.COM,%,$@),SHARED,$(patsubst %.COM,%,$@)/n/x/y/e
-	$(call hex2bin,$(patsubst %.COM,%.HEX,$@),$@)
+	$(call assemble,$(patsubst %.COM,%.MAC,$@))
+	@$(LK80) --output-file $@ --code 0100h CODES.REL DATA.REL $(patsubst %.COM,%.REL,$@) SHARED.REL
 	$(call copy_to_bin,$@)
 
 SHARED.REL: \
 	SHARED.MAC \
 	$(INCS)
 
-	M80 -p ../kernel =SHARED
+	$(call assemble,SHARED.MAC)
 
 CODES.REL: \
 	../kernel/codes.mac \
 	$(INCS)
 
-	M80 -p ../kernel =CODES
+	$(call assemble,../kernel/codes.mac)
 
 DATA.REL: \
 	../kernel/data.mac \
 	$(INCS)
 
-	M80 -p ../kernel =DATA
+	$(call assemble,../kernel/data.mac)
 
 .PHONY: clean
 
 clean:
-	for ext in REL SYM HEX COM; do find . -type f -name "*.$$ext" -delete; done
+	for ext in REL rel SYM sym HEX COM; do find . -type f -name "*.$$ext" -delete; done

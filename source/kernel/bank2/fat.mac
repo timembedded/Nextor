@@ -1,10 +1,11 @@
 	.z80
+	name('fat')
 	TITLE	MSX-DOS 2 KERNEL   Copyright (1986)  IS Systems Ltd.
 	SUBTTL	File Attribute Table (FAT) Handling
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 	RAMMOD
 ;
 ;------------------------------------------------------------------------------
@@ -116,12 +117,12 @@ return_0ffffh:
 		ex	(sp),ix
 		push	bc			;save user BC
 ;
-		ld	b,(ix+UD_CSHFT##)	;Get cluster shift from
+		ld	b,(ix+UD_CLUSTER_SHIFT##)	;Get cluster shift from
 						; unit descriptor and add
 						; one to it for the loop
 ;;		push	hl
 ;;		push	bc
-;;		ld	bc,UD_CSHFT##
+;;		ld	bc,UD_CLUSTER_SHIFT##
 ;;		add	hl,bc
 ;;		ld	b,(hl)
 ;===== end mod FAT16
@@ -136,7 +137,7 @@ endif
 		jr	sft_cshft_loop		;Skip "ADD HL,HL" and "RL C" first time
 cshft_loop:	add	hl,hl			;Double the cluster number
 		rl	c
-sft_cshft_loop:	djnz	cshft_loop		; UD_CSHFT times.
+sft_cshft_loop:	djnz	cshft_loop		; UD_CLUSTER_SHIFT times.
 ;;		code	mvi c
 ;;cshft_loop:	add	hl,hl
 ;;		djnz	cshft_loop
@@ -146,14 +147,14 @@ sft_cshft_loop:	djnz	cshft_loop		; UD_CSHFT times.
 		ld	l,a			; number.
 ;
 ;===== start mod FAT16 (2DD4/GETSEC patch)
-		ld	e,(ix+UD_SDAT##)
-		ld	d,(ix+UD_SDAT##+1)
+		ld	e,(ix+UD_FIRST_DATA_SECTOR##)
+		ld	d,(ix+UD_FIRST_DATA_SECTOR##+1)
 		add	hl,de
 		ld	a,c
 		;assume B=0 (set "djnz")
 		adc	a,b
 ;;		ex	de,hl
-;;		ld	c,UD_SDAT##-UD_CSHFT##
+;;		ld	c,UD_FIRST_DATA_SECTOR##-UD_CLUSTER_SHIFT##
 ;;		add	hl,bc
 ;;		ld	a,(hl)
 ;;		inc	hl
@@ -312,7 +313,7 @@ FIND_FAT_ENTRY:
 ; returned.
 ;
 ;    If the FAT entry number is not within the cluster range of the  disk  (as
-; defined  by  UD_NCLU in the unit descriptor) then it returns with the Z-flag
+; defined  by  UD_CLUSTER_COUNT in the unit descriptor) then it returns with the Z-flag
 ; clear to indicate the error.  In this case the address in DE is not valid.
 ;
 ; Entry:       HL = Address of unit descriptor
@@ -334,8 +335,8 @@ FIND_FAT_ENTRY:
 		pop	ix			 ;      passing to BF_SECTOR
 		res	FF_OVR,(iy+@FAT_FLAGS##) ;Clear sector boundary flag
 ;
-		ld	l,(ix+UD_NCLU##)	;Get cluster number from
-		ld	h,(ix+UD_NCLU##+1)	; unit descriptor and check
+		ld	l,(ix+UD_CLUSTER_COUNT##)	;Get cluster number from
+		ld	h,(ix+UD_CLUSTER_COUNT##+1)	; unit descriptor and check
 if 0
 		dec	hl			; that it is within valid
 endif
@@ -370,8 +371,8 @@ find_fat16:	push	af			;Save odd/even flag (carry)
 ;;		srl	e
 ;;		ld	d,a
 ;===== end mod FAT16
-		ld	l,(ix+UD_RES##)
-		ld	h,(ix+UD_RES##+1)	;Add on reserved sectors to get
+		ld	l,(ix+UD_RESERVED_SECTORS##)
+		ld	h,(ix+UD_RESERVED_SECTORS##+1)	;Add on reserved sectors to get
 		add	hl,de			; sector number required.
         ld  (TMP_FAT##),hl   ; Save FAT sector number, needed by F_GETCLUS
 		ex	de,hl
@@ -458,7 +459,7 @@ CLEAN_DISK:
 ;
 		push	hl
 		ex	(sp),ix
-		bit	0,(ix+UD_DIRT##)	;Return without doing anything
+		bit	0,(ix+UD_DIRTY_DISK_FLAG##)	;Return without doing anything
 		jr	z,CL_DIRT_RET		; if disk is already clean.
 ;
 		xor	a			;Jump into "DIRTY_DISK" code
@@ -481,27 +482,27 @@ CLEAN_DISK:
 ; Corrupts:   AF
 ; Preserves:  BC,DE,HL,AF',BC',DE',HL'
 ;
-; Assumes:     BD_UNIT=2
+; Assumes:     BD_PHYSICAL_UNIT_NUMBER=2
 ;
 ;
 		push	hl
 		ex	(sp),ix
 		bit	UF_UNDL,(ix+UD_FLAGS##)	;Don't do anyting if disk does
 		jr	z,cl_dirt_ret		; not support un-deleting
-		bit	0,(ix+UD_DIRT##)	;Also do nothing if disk is
+		bit	0,(ix+UD_DIRTY_DISK_FLAG##)	;Also do nothing if disk is
 		jr	nz,cl_dirt_ret		; already dirty.
 ;
 		ld	a,1			;New value for dirty disk flag
 ;
 CL_DIRT_DISK:	push	bc
 		push	de
-		ld	b,(ix+UD_NFAT##)	;If only one copy of the FAT
+		ld	b,(ix+UD_NUMBER_OF_FATS##)	;If only one copy of the FAT
 		dec	b			; then just clear the
 		jr	z,set_dirt_flag		; dirty disk flag.
 ;
-		ld	e,(ix+UD_RES##)		;DE := first FAT sector
-		ld	d,(ix+UD_RES##+1)
-		ld	b,(ix+UD_SFAT##)	;B := number of sectors to do
+		ld	e,(ix+UD_RESERVED_SECTORS##)		;DE := first FAT sector
+		ld	d,(ix+UD_RESERVED_SECTORS##+1)
+		ld	b,(ix+UD_SECTORS_PER_FAT##)	;B := number of sectors to do
 ;
 cl_dirt_loop:	push	bc
 		push	af			;If dirtying disk then just
@@ -538,7 +539,7 @@ fat_flush:	pcall	BF_SFL			;Flush the buffer if necessary
 ;
 		ld	b,a			;B := required dirty disk flag
 set_dirt_flag:	ld	a,b			;If dirty disk flag is already
-		cp	(ix+UD_DIRT##)		; in the correct state then
+		cp	(ix+UD_DIRTY_DISK_FLAG##)		; in the correct state then
 		jr	z,dirt_flag_ok		; return.
 ;
 		push	bc			;Save dirty disk flag value
@@ -558,7 +559,7 @@ set_dirt_flag:	ld	a,b			;If dirty disk flag is already
 		call	DTY_ADD
 		pop	bc
 		ld	(hl),b			;Record new dirty disk flag
-		ld	(ix+UD_DIRT##),b	;in boot sector and UPB.
+		ld	(ix+UD_DIRTY_DISK_FLAG##),b	;in boot sector and UPB.
 ;
 dirt_flag_ok:	pop	de
 		pop	bc
@@ -597,7 +598,7 @@ init_fat_loop:	inc	de
 		ld	bc,0			;Now loop to set each FAT
 		call	FAT_ASET		; entry to zero until we
 		push	hl			; reach the maximum cluster
-		ld	bc,UD_NCLU##		; number as specified in the
+		ld	bc,UD_CLUSTER_COUNT##		; number as specified in the
 		add	hl,bc			; unit decriptor.
 		ld	a,(hl)
 		inc	hl
@@ -661,7 +662,7 @@ all_clu_loop:	push	bc			;Remember cluster count
 		push	de			;Remember previous cluster
 all_clu_loop_2:	inc	de			;Try next cluster number
 		push	hl
-		ld	bc,UD_NCLU##		;Get total number of clusters
+		ld	bc,UD_CLUSTER_COUNT##		;Get total number of clusters
 		add	hl,bc			; from unit descriptor and
 		ld	a,(hl)			; compare this with the next
 		inc	hl			; cluster which we are about
@@ -771,14 +772,14 @@ disk_full:	pop	de			;Disk full.  Free all clusters
 ;
 		push	hl
 ;===== start mod FAT16 (support BUF_5/BUF_2 patch)
-		ld	c,(ix+UD_SDIR##)	;BC := first root dir sector
-		ld	b,(ix+UD_SDIR##+1)
-		ld	e,(ix+UD_SDAT##)	;DE := first data sector
-		ld	d,(ix+UD_SDAT##+1)
+		ld	c,(ix+UD_FIRST_ROOT_DIR_SECTOR##)	;BC := first root dir sector
+		ld	b,(ix+UD_FIRST_ROOT_DIR_SECTOR##+1)
+		ld	e,(ix+UD_FIRST_DATA_SECTOR##)	;DE := first data sector
+		ld	d,(ix+UD_FIRST_DATA_SECTOR##+1)
 		ld	h,d
 		ld	l,e			;Number of root directory
 		sbc	hl,bc			; sectors is the difference
-;;		ld	bc,UD_SDIR##
+;;		ld	bc,UD_FIRST_ROOT_DIR_SECTOR##
 ;;		add	hl,bc
 ;;		ld	c,(hl)
 ;;		inc	hl
@@ -801,17 +802,17 @@ disk_full:	pop	de			;Disk full.  Free all clusters
 		jr	now_zero_clu
 ;
 ;===== start mod FAT16 (suport BUF_2 patch)
-not_root_dir:	ld	a,(ix+UD_CMSK##)	;Get number of sectors per
+not_root_dir:	ld	a,(ix+UD_CLUSTER_MASK##)	;Get number of sectors per
 						; cluster - 1 from unit
 						; descriptor.
 		call	CLU_TO_SEC		;Find sector number of last
 						; sector in cluster.
 		ld	c,a			; C := last root dir sector. (bit16-22)
-		ld	b,(ix+UD_CMSK##)	; B := sector count
+		ld	b,(ix+UD_CLUSTER_MASK##)	; B := sector count
 ;
 now_zero_clu:	inc	b
 ;;not_root_dir:	push	hl
-;;		ld	bc,UD_CMSK##
+;;		ld	bc,UD_CLUSTER_MASK##
 ;;		add	hl,bc
 ;;		ld	b,(hl)
 ;;		pop	hl
@@ -886,13 +887,13 @@ zero_dsec_loop:	ld	(hl),c			; the data area of buffer
 
 		call free_chain_lp
 
-		;Update UD_ACLU to the number of the lowest cluster that has been
+		;Update UD_ALLOCATION_CLUSTER to the number of the lowest cluster that has been
 		;freed -1, but only if the new value would be smaller than the
-		;current value. This is to ensure that UD_ACLU is always either 1
+		;current value. This is to ensure that UD_ALLOCATION_CLUSTER is always either 1
 		;or the lower free cluster number available -1.
 
 		push hl         ;Preserve address of unit descriptor
-		call ACLU_GET	;DE = current value of UD_ACLU
+		call ACLU_GET	;DE = current value of UD_ALLOCATION_CLUSTER
 		ld hl,(FAT_CHAIN##)  ;HL = Lowest cluster number freed (new value+1)
 		ex de,hl        ;HL = current value, DE = new value+1
 		dec de          ;DE = new value
@@ -950,7 +951,7 @@ frchlp2:
 
 DTY_ADD:
 	push	bc
-	ld	bc,UPB_EBS##
+	ld	bc,UPB_EXTENDED_SIGNATURE##
 	add	hl,bc
 	pop	bc
 	ld	a,(hl)
@@ -965,7 +966,7 @@ DTY_ADD:
 ;
 	PROC	ACLU_SET
 ;
-;    Sets the UD_ACLU field of a unit descriptor.
+;    Sets the UD_ALLOCATION_CLUSTER field of a unit descriptor.
 ;
 ; Entry:   DE = Value to set
 ;	       HL = Address of unit descriptor
@@ -974,7 +975,7 @@ DTY_ADD:
 ;
 	push	hl
 	push    de
-	ld	de, UD_ACLU##
+	ld	de, UD_ALLOCATION_CLUSTER##
 	add	hl,de
 	pop     de
 	ld	(hl),e
@@ -986,7 +987,7 @@ DTY_ADD:
 ;
 ;------------------------------------------------------------------------------
 ;
-;    Gets the UD_ACLU field of a unit descriptor.
+;    Gets the UD_ALLOCATION_CLUSTER field of a unit descriptor.
 ;
 ; Entry:   HL = Address of unit descriptor
 ; Returns: DE = Value
@@ -994,7 +995,7 @@ DTY_ADD:
 ;
 ACLU_GET:
     push	hl
-	ld	de,UD_ACLU##
+	ld	de,UD_ALLOCATION_CLUSTER##
 	add	hl,de
 	ld	e,(hl)
 	inc	hl

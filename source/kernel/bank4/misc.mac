@@ -1,10 +1,11 @@
 	.z80
+	name('misc')
 	title	MSX-DOS 2 KERNEL   Copyright (1986)  IS Systems Ltd.
 	subttl	Miscellaneous KBDOS functions (bank 4 part)
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE ../macros.inc
+	INCLUDE	../const.inc
 	;RAMMOD
 
 CHPUT	equ	00A2h	
@@ -267,8 +268,8 @@ dspace_okfn:
 
 	push	hl
 	pop	ix
-	ld	e,(ix+UD_NCLU##)
-	ld	d,(ix+UD_NCLU##+1)
+	ld	e,(ix+UD_CLUSTER_COUNT##)
+	ld	d,(ix+UD_CLUSTER_COUNT##+1)
 	dec	de			;DE = Total cluster count	
 
 	or	a
@@ -327,7 +328,7 @@ DSP_NEXT:
 	;    Transform it to KBytes + extra space.
 
 dspace_tokbytes:
-	ld	a,(ix+UD_CMSK##)	;Cluster mask = sectors/cluster-1
+	ld	a,(ix+UD_CLUSTER_MASK##)	;Cluster mask = sectors/cluster-1
 	ld	bc,0
 	ld	hl,0
 	or	a
@@ -406,7 +407,7 @@ dspace_end:
     push hl ;Unit descriptor
     pop ix
 
-    ld b,(ix+UD_CMSK##)
+    ld b,(ix+UD_CLUSTER_MASK##)
     inc b   ;Sectors per cluster
     ld a,(ix+UD_FLAGS##)
 
@@ -607,11 +608,11 @@ no_free_seg:
 		ld	a,RAMD_NUM
 		push	hl			;Setup a few important fields
 		pop	ix			; of the unit descriptor.
-		ld	(ix+UD_PHYS##),a	;Physical unit number
+		ld	(ix+UD_PHYSICAL_UNIT##),a	;Physical unit number
 		ld	(ix+UD_TIME##),0	;No current UPB
-		ld	(ix+UD_CDIR##+1),0FFh	;Current directory is root
+		ld	(ix+UD_CURRENT_DIR_FIRST_CLUSTER##+1),0FFh	;Current directory is root
 ;===== start add FAT16 (DOS2.50 original patch)
-		ld	(ix+UD_CDIR##),0FFh
+		ld	(ix+UD_CURRENT_DIR_FIRST_CLUSTER##),0FFh
 ;===== end add FAT16
 ;
 		ld	c,a			;Validate the RAM disk, this

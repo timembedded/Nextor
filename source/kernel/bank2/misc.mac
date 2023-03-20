@@ -1,10 +1,11 @@
 	.z80
+	name('misc')
 	title	MSX-DOS 2 KERNEL   Copyright (1986)  IS Systems Ltd.
 	subttl	Miscellaneous KBDOS functions
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 	RAMMOD
 ;
 ;------------------------------------------------------------------------------
@@ -176,8 +177,8 @@ not_login:	djnz	login_loop		;Loop 'til done all drives
 ;
 		push	hl			;Get total number of
 		pop	ix			; clusters from UPB and
-		ld	e,(ix+UD_NCLU##)	; save it on the stack
-		ld	d,(ix+UD_NCLU##+1)	; for loop testing.
+		ld	e,(ix+UD_CLUSTER_COUNT##)	; save it on the stack
+		ld	d,(ix+UD_CLUSTER_COUNT##+1)	; for loop testing.
 		push	de
 ;
 		ld	a,(MFLAGS##)
@@ -202,8 +203,8 @@ NO_ZALLOC:
 		bit	UF_RALL,(ix+UD_FLAGS##)
 		jr	z,ALLOC_NOR
 
-		ld	c,(ix+UD_RDCLUS##)
-		ld	b,(ix+UD_RDCLUS##+1)
+		ld	c,(ix+UD_REDUCED_CLUSTER_COUNT##)
+		ld	b,(ix+UD_REDUCED_CLUSTER_COUNT##+1)
 		bit	7,h
 		jr	nz,ALLOC_R
 
@@ -255,8 +256,8 @@ not_free:
 		;--- Common code for FAT12 and FAT16
 
 ALLOC_COMMON:
-		ld	e,(ix+UD_RES##)
-		ld	d,(ix+UD_RES##+1)	;Get the first FAT sector
+		ld	e,(ix+UD_RESERVED_SECTORS##)
+		ld	d,(ix+UD_RESERVED_SECTORS##+1)	;Get the first FAT sector
 		xor	a
 		pcall	BF_FAT_SECTOR		; into a buffer.
 		ld	de,BD_DATA##
@@ -278,14 +279,14 @@ endif
 
 		bit	UF_RALL,(ix+UD_FLAGS##)
 		jr	z,no_reduced_total
-		ld	e,(ix+UD_RDCLUS##)
-		ld	d,(ix+UD_RDCLUS##+1)	;Return reduced total size if necessary
+		ld	e,(ix+UD_REDUCED_CLUSTER_COUNT##)
+		ld	d,(ix+UD_REDUCED_CLUSTER_COUNT##+1)	;Return reduced total size if necessary
 
 no_reduced_total:
-		ld	c,(ix+UD_DPB##)
-		ld	b,(ix+UD_DPB##+1)	;Get DPB address and save it
+		ld	c,(ix+UD_DPB_ADDRESS##)
+		ld	b,(ix+UD_DPB_ADDRESS##+1)	;Get DPB address and save it
 		push	bc			; on stack.
-		ld	c,(ix+UD_CMSK##)
+		ld	c,(ix+UD_CLUSTER_MASK##)
 		inc	c			; C := sectors/cluster
 		pop	ix			;IX := DPB address
 		xor	a
@@ -307,8 +308,8 @@ ALLOC_FAT16:
 		inc	hl
 		inc	hl
 
-		ld	e,(ix+UD_RES##)
-		ld	d,(ix+UD_RES##+1)	;DE = First FAT sector
+		ld	e,(ix+UD_RESERVED_SECTORS##)
+		ld	d,(ix+UD_RESERVED_SECTORS##+1)	;DE = First FAT sector
 
 		ld	b,h
 		ld	c,l
@@ -429,7 +430,7 @@ FCISN:
 		pop	ix			; for later and save user's
 		push	de			; pointer for return.
 ;
-		ld	bc,UD_PHYS##		;Copy physical unit number
+		ld	bc,UD_PHYSICAL_UNIT##		;Copy physical unit number
 		add	hl,bc			; from unit descriptor
 		ldi				; into the data block.
 ;
@@ -500,13 +501,13 @@ dp_clear_loop:	ld	(de),a			;Clear the rest of the
 		pop	de
 		ldi				;Copy media byte in.
 ;
-		ld	l,(ix+UD_NCLU##)	;Get maximum cluster number
-		ld	h,(ix+UD_NCLU##+1)	; and subtract 2 to get the
+		ld	l,(ix+UD_CLUSTER_COUNT##)	;Get maximum cluster number
+		ld	h,(ix+UD_CLUSTER_COUNT##+1)	; and subtract 2 to get the
 		dec	hl			; actual number of data
 if 0
 		dec	hl			; clusters.
 endif
-		ld	b,(ix+UD_CSHFT##)
+		ld	b,(ix+UD_CLUSTER_SHIFT##)
 if 0
 		inc	b
 endif
@@ -519,8 +520,8 @@ dp_shift_lp:	add	hl,hl			;Shift this according to the
 ;;dp_shift_lp:	add	hl,hl
 ;===== end mod FAT16
 dp_shift_st:	djnz	dp_shift_lp		; number of data sectors.
-		ld	c,(ix+UD_SDAT##)
-		ld	b,(ix+UD_SDAT##+1)	;Add on the first data sector
+		ld	c,(ix+UD_FIRST_DATA_SECTOR##)
+		ld	b,(ix+UD_FIRST_DATA_SECTOR##+1)	;Add on the first data sector
 		add	hl,bc			; number to get the total
 ;===== start add FAT16 (0CBAh patch)
 		adc	a,0
@@ -825,7 +826,7 @@ got_buf_bc:	set	7,d
 ;              B = Current number of buffers
 ;
 		ld	a,b			;Don't do anything if too
-		cp	MIN_BUFS##		; few buffers requested.
+		cp	MIN_SECTOR_BUFFERS##		; few buffers requested.
 		jr	c,buffers_done
 ;
 alter_buf_loop:	ld	a,b			;See how many buffer we have
@@ -847,7 +848,7 @@ alter_buf_loop:	ld	a,b			;See how many buffer we have
 		dec	(hl)			;Count one less buffer and
 		jr	alter_buf_loop		; loop to check again.
 ;
-alloc_buffer:	ld	hl,BD_SZ##		;Too few so allocate one more.
+alloc_buffer:	ld	hl,BD_DESC_SIZE##		;Too few so allocate one more.
 		pcall	ALL_P2			;Allocate RAM for the buffer
 		jr	nz,buffers_done		; and stop if out of memory.
 		ld	de,(B_CHAIN##)
@@ -989,13 +990,13 @@ dont_set_dchk:
 		cp	0CDh
 		jr	nz,DOSVER2
 
-		ld	ix,256 + NXTVER##
-		ld	iy,256*NXTV_HI## + NXTV_LO##
+		ld	ix,256 + MAIN_NEXTOR_VERSION##
+		ld	iy,256*SEC_NEXTOR_VERSION_HIGH## + SEC_NEXTOR_VERSION_LOW##
 		ld	hl,DOSV0##
 DOSVER2:
 
-		ld	b,DOSVER##
-		ld	c,DOSV_LO##+16*DOSV_HI##
+		ld	b,MAIN_DOS_VERSION##
+		ld	c,SEC_DOS_VERSION_LOW##+16*SEC_DOS_VERSION_HIGH##
 		xor	a
 		ld	d,a
 		ld	e,a

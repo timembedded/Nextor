@@ -1,10 +1,11 @@
 	.z80
+	name('rw')
 	TITLE	MSX-DOS 2 KERNEL   Copyright (1986)  IS Systems Ltd.
 	SUBTTL	Disk Read and Write Routines
 ;******************************************************************************
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	../macros.inc
+	INCLUDE	../const.inc
 	RAMMOD
 ;
 ;------------------------------------------------------------------------------
@@ -368,7 +369,7 @@ CORRECT_BUF:
 ; Returns:       None
 ; Corrupts:     AF,AF',BC',DE',HL'
 ;
-; Assumes:      BD_UNIT=2    BD_FLAGS=3    BD_SECT=4    BD_EX_SECT=8
+; Assumes:      BD_PHYSICAL_UNIT_NUMBER=2    BD_FLAGS=3    BD_SECTOR_NUMBER=4    BD_EX_SECTOR_NUMBER=8
 ;
 ;
 		pcall	FLG_UD			;Flag all buffers for this unit
@@ -377,13 +378,13 @@ correct_loop:	push	bc
 		exx
 		pcall	FLG_NEXT		;Get next buffer for this unit
 		jr	z,correct_done		; and jump to return if no more
-		ld	bc,BD_SECT##
+		ld	bc,BD_SECTOR_NUMBER##
 		add	hl,bc
 		ld	e,(hl)			;DE := sector number from this
 		inc	hl			;      buffer.
 		ld	d,(hl)
 ;===== start add FAT16 (DSKBUF patch)
-		ld	bc,BD_EX_SECT##-BD_SECT##-1
+		ld	bc,BD_EX_SECTOR_NUMBER##-BD_SECTOR_NUMBER##-1
 		add	hl,bc
 		ld	a,(hl)			;A := sector number (bit16-22)
 						; from this buffer

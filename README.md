@@ -24,17 +24,14 @@ Note that there is no `master` branch, but branches for each major version of Ne
 
 ## How to build Nextor
 
-The "official" environment for building Nextor is Linux. Legacy support for Windows is still offered but it's deprecated. Read on for the ugly details.
+Nextor requires Linux to be built. It should work on macOs too, but that hasn't been tested. If you are on Windows 10 or 11 you can use [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
 
-### Linux
-
-To build Nextor on Linux you'll need:
+To build Nextor you'll need:
 
 * `make`. On Debian/Ubuntu-ish systems you can just `apt-get install make`.
-* The native MACRO80 tools provided by [the M80dotNet project](https://github.com/Konamiman/M80dotNet). Go to [the releases section](https://github.com/Konamiman/M80dotNet/releases) and download the appropriate variant of the latest version.
-* [SDCC](http://sdcc.sourceforge.net/), for FDISK and the command line tools written in C. On Debian/Ubuntu-ish systems you can just `apt-get install sdcc`.
+* [The Nestor80 tools](https://github.com/Konamiman/Nestor80). Go to [the releases section](https://github.com/Konamiman/Nestor80/releases) and download the appropriate variant of the latest version for the assembler (N80), the linker (LK80) and the library manager (LB80).
+* [SDCC](http://sdcc.sourceforge.net/) **v4.2 or newer**, for FDISK and the command line tools written in C. On Debian/Ubuntu-ish systems you can just `apt-get install sdcc`.
 * `objcopy` from [the binutils package](https://www.gnu.org/software/binutils/). On Debian/Ubuntu-ish systems you can just `apt-get install binutils`.
-* `sjasm` v0.39 to assemble some of the drivers. You have it in the `buildtools/Linux` folder, but you can also build it from [the sources](https://github.com/Konamiman/Sjasm/tree/v0.39) (remember to switch to the `v0.39` branch).
 * `mknexrom` to generate the ROM files with the drivers. You have it in the `buildtools/Linux` folder, but you can also build it from the source in the `buildtools/sources` directory.
 
 Except for those obtained via `apt`, you'll need to place these tools at a suitable location to be able to use them, e.g. `/usr/bin`.
@@ -49,16 +46,3 @@ There are five makefiles that will take care of building the different component
 
 You may want to take a look at [this now closed pull request from Dean Netherton](https://github.com/Konamiman/Nextor/pull/79) that contains a different attempt at writing makefiles for bulding Nextor. It even has some nice extra features like building FDD and HDD images with Nextor, and building the `mknexrom` tool itself.
 
-## Windows
-
-If you use Windows 10 the recommended approach is to use the Linux tools and scripts with [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10). If you use an older Windows the recommended approach is to upgrade to Windows 10 (or to install Linux in a separate partition or disk, or in a virtual machine).
-
-However, if for some reason you are still using a non-WSL capable Windows, support for building Nextor is available as well; but note that it will probably be removed at some point in the future, as it's a maintenance burden (seriously, give Windows 10 and WSL a try, it's really worth it).
-
-To build Nextor on Windows you need:
-
-* The tools in the `buildtools/Windows` folder. These must be placed in some folder included in the `PATH` environment variable.
-* [SDCC](http://sdcc.sourceforge.net/), for FDISK and the command line tools written in C.
-* .NET Framework 2.0 or higher, for the `SymToEqus` tool.
-
-You'll find a number of `.bat` files available at the same locations of the Linux makefiles except for the one in `source` (see "Linux" section above). These are not "makefile-ish" and always build the whole set of kernels/tools.

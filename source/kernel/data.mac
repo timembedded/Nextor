@@ -1,10 +1,11 @@
 	.z80
+	name('data')
 	title	MSX-DOS 2 Copyright (1986)  IS Systems Ltd.
 	subttl	Page-3 Fixed System Data Area
 ;-----------------------------------------------------------------------------
 ;
-	INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE	macros.inc
+	INCLUDE	const.inc
 ;
 ;-----------------------------------------------------------------------------
 ;

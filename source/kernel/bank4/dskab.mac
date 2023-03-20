@@ -1,11 +1,12 @@
     .z80
+    name('dskab')
 
 ; Disk error handler and abort hooks for page 4.
 ; See KABJ and KDERJ at the end of bank0/drv.mac
 ; for an explanation of why this is needed.
 
-    INCLUDE	MACROS.INC
-	INCLUDE	CONST.INC
+	INCLUDE ../macros.inc
+	INCLUDE	../const.inc
     
     ;org 7FC0h
 
