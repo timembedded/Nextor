@@ -32,7 +32,7 @@ asm-tools: $(COMS)
 
 .phony: prerequisites
 
-TOOLS := N80 L80
+TOOLS := N80 LK80
 
 prerequisites:
 	@mkdir -p ../../bin/tools
