@@ -6,6 +6,7 @@
 ;
 	INCLUDE	../condasm.inc
 	INCLUDE ../const.inc
+	INCLUDE ../macros.inc
 ;
 ;===== end add DOS2.50
 ;

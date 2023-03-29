@@ -5855,14 +5855,6 @@ GET_DVB_NEXT:
 	scf
 	ret
 
-GET_DISKID_HL:
-	ld	hl,DISKID
-	ld	a,(hl)
-	inc	a
-	ret	nz
-	ld	hl,PROCNM+8
-	ret
-
 ;-----------------------------------------------------------------------------
 ;
 	PROC	DRVS2
