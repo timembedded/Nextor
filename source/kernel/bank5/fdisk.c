@@ -784,13 +784,13 @@ void GoPartitioningMainMenuScreen()
 			AddAutoPartition();
 		} else if(key == 'u' && !partitionsExistInDisk && partitionsCount > 0) {
 			UndoAddPartition();
-		}else if(key == 't') {
+		} else if(key == 't') {
 			TestDeviceAccess();
 		} else if(key == 'f' && canDoDirectFormat) {
 			if(FormatWithoutPartitions()) {
 				mustRetrievePartitionInfo = true;
 			}
-		}else if(key == 'w' && !partitionsExistInDisk && partitionsCount > 0) {
+		} else if(key == 'w' && !partitionsExistInDisk && partitionsCount > 0) {
 			if(WritePartitionTable()) {
 				mustRetrievePartitionInfo = true;
 			}
@@ -1679,7 +1679,7 @@ int CallFunctionInExtraBank(int functionNumber, void* parametersBuffer)
 	regs.Words.HL = (int)parametersBuffer;
 	regs.Words.IX = (int)0x4100;	//Address of "main" for extra functions program
 	AsmCall(CALBNK, &regs, REGS_ALL, REGS_MAIN);
-	return regs.Words.HL;
+	return regs.Words.DE;
 }
 
 
