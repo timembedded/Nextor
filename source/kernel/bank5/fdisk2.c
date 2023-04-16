@@ -415,7 +415,7 @@ int CalculateFatFileSystemParametersFat16(ulong fileSystemSizeInK, dosFilesystem
 	clusterCount = dataSectorsCount >> sectorsPerClusterPower;
 	sectorsPerFat = (clusterCount + 2) >> 8;
 
-	if(((clusterCount + 2) & 0x3FF) != 0) {
+	if(((clusterCount + 2) & 0xFF) != 0) {
 		sectorsPerFat++;
 	}
 
@@ -515,6 +515,10 @@ int CreatePartition(int index)
 
 	if(index != (partitionsCount - 1)) {
 		tableEntry++;
+		//Theorically here we should set PARTYPE_EXTENDED_LBA instead,
+		//but we stick to PARTYPE_EXTENDED for robustness, as older
+		//versions of MAPDRV don't recognize PARTYPE_EXTENDED_LBA
+		//as an extended partition type.
 		tableEntry->partitionType = PARTYPE_EXTENDED;
 		tableEntry->firstAbsoluteSector = nextDeviceSector;
 		if(index == 0) {
