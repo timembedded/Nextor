@@ -515,11 +515,7 @@ int CreatePartition(int index)
 
 	if(index != (partitionsCount - 1)) {
 		tableEntry++;
-		//Theorically here we should set PARTYPE_EXTENDED_LBA instead,
-		//but we stick to PARTYPE_EXTENDED for robustness, as older
-		//versions of MAPDRV don't recognize PARTYPE_EXTENDED_LBA
-		//as an extended partition type.
-		tableEntry->partitionType = PARTYPE_EXTENDED;
+		tableEntry->partitionType = PARTYPE_EXTENDED_LBA;
 		tableEntry->firstAbsoluteSector = nextDeviceSector;
 		if(index == 0) {
 			mainExtendedPartitionFirstSector = nextDeviceSector;
