@@ -3138,7 +3138,7 @@ MAP_SPECIFIC:
 
 MAP_DRV_UNK:
 	;Unknown change status: assume unchanged media.
-	;If it has changed, the boot checksum checksum
+	;If it has changed, the boot checksum
 	;mechanism will do the work of unassigning
 	;all other drives mapped to this device
 	;if necessary.
@@ -3148,6 +3148,7 @@ MAP_DRV_UNK:
 MAP_DRV_CH:
 	push	hl
 	push	iy
+	push	bc
 	ld	e,(hl)
 	inc	hl
 	ld	d,(hl)
@@ -3157,6 +3158,7 @@ MAP_DRV_CH:
 	ld	d,(iy+2)
 	ld	e,(iy+3)
 	call	UNMAPALL
+	pop bc
 	pop	iy
 	pop	hl
 
