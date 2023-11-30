@@ -415,7 +415,7 @@ int CalculateFatFileSystemParametersFat16(ulong fileSystemSizeInK, dosFilesystem
 	clusterCount = dataSectorsCount >> sectorsPerClusterPower;
 	sectorsPerFat = (clusterCount + 2) >> 8;
 
-	if(((clusterCount + 2) & 0x3FF) != 0) {
+	if(((clusterCount + 2) & 0xFF) != 0) {
 		sectorsPerFat++;
 	}
 
@@ -515,7 +515,7 @@ int CreatePartition(int index)
 
 	if(index != (partitionsCount - 1)) {
 		tableEntry++;
-		tableEntry->partitionType = PARTYPE_EXTENDED;
+		tableEntry->partitionType = PARTYPE_EXTENDED_LBA;
 		tableEntry->firstAbsoluteSector = nextDeviceSector;
 		if(index == 0) {
 			mainExtendedPartitionFirstSector = nextDeviceSector;

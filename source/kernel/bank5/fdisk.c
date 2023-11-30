@@ -841,7 +841,7 @@ byte GetDiskPartitionsInfo()
 		DosCallFromRom(_GPART, REGS_ALL);
 		error = regs.Bytes.A;
 		if(error == 0) {
-			if(regs.Bytes.B == PARTYPE_EXTENDED) {
+			if(regs.Bytes.B == PARTYPE_EXTENDED || regs.Bytes.B == PARTYPE_EXTENDED_LBA) {
 				extendedIndex = 1;
 			} else {
 				currentPartition->primaryIndex = primaryIndex;
