@@ -64,7 +64,8 @@ endef
 ###  MAIN RULE  ###
 ###################
 
-all: base ide ide-masteronly ide-emu ide-masteronly-emu ascii8 ascii16 mfrsd flashjacks ocm
+all: base ide ide-masteronly ide-emu ide-masteronly-emu ascii8 ascii16 mfrsd flashjacks ocm \
+	carnivore2
 
 TOOLS := $(N80) $(LK80) $(LB80) objcopy sdcc $(MKNEXROM) dd
 
@@ -306,6 +307,30 @@ drivers/OCM/Nextor-$(VERSION).OCM.ROM: \
 	drivers/StandaloneASCII8/chgbnk.bin
 
 	$(MKNEXROM) nextor_base.dat $@ /d:drivers/OCM/driver.dat /m:drivers/StandaloneASCII8/chgbnk.bin
+	$(call copy_to_bin,$@)
+
+### Carnivore2 based on Sunrise-IDE
+carnivore2: drivers/Carnivore2/Nextor-$(VERSION).Carnivore2.ROM drivers/Carnivore2/BIDECMFC.BIN
+
+drivers/Carnivore2/BIDECMFC.BIN: drivers/Carnivore2/Nextor-$(VERSION).Carnivore2.ROM
+	@cp $< $@
+
+drivers/Carnivore2/carnivore2.bin: \
+	drivers/Carnivore2/carnivore2.asm
+
+	$(call assemble_as,drivers/Carnivore2/carnivore2.asm,$$/carnivore2.bin,--build-type abs --output-file-extension bin --define-symbols MASTER_ONLY,BAD_POPS)
+
+drivers/Carnivore2/chgbnk.bin: \
+	drivers/Carnivore2/chgbnk.mac
+
+	$(call assemble,drivers/Carnivore2/chgbnk.mac,--build-type abs --output-file-extension bin)
+
+drivers/Carnivore2/Nextor-$(VERSION).Carnivore2.ROM: \
+	nextor_base.dat \
+	drivers/Carnivore2/carnivore2.bin \
+	drivers/Carnivore2/chgbnk.bin
+
+	$(MKNEXROM) nextor_base.dat $@ /d:drivers/Carnivore2/carnivore2.bin /m:drivers/Carnivore2/chgbnk.bin
 	$(call copy_to_bin,$@)
 
 
