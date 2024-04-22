@@ -23,6 +23,8 @@
 #include "../../tools/C/partit.h"
 #include "fdisk.h"
 
+extern void __ultoa(long val, char* buffer, char base);
+
 //#define FAKE_DEVICE_INFO
 //#define FAKE_DRIVER_INFO
 //#define FAKE_PARTITION_COUNT 256
@@ -185,8 +187,8 @@ void main(int bc, int hl)
 #endif
 #ifdef TEST_FAT_PARAMETERS
 	CalculateFatFileSystemParameters(fakeDeviceSizeInK, (dosFilesystemParameters*)buffer);
-	printf("Total sectors: "); _ultoa(((dosFilesystemParameters*)buffer)->totalSectors, buffer+80, 10); printf("%s\r\n", buffer+80);
-	printf("Data sectors:  "); _ultoa(((dosFilesystemParameters*)buffer)->dataSectors, buffer+80, 10); printf("%s\r\n", buffer+80);
+	printf("Total sectors: "); __ultoa(((dosFilesystemParameters*)buffer)->totalSectors, buffer+80, 10); printf("%s\r\n", buffer+80);
+	printf("Data sectors:  "); __ultoa(((dosFilesystemParameters*)buffer)->dataSectors, buffer+80, 10); printf("%s\r\n", buffer+80);
 	printf("Cluster count: %u\r\n", ((dosFilesystemParameters*)buffer)->clusterCount);
 	printf("Sectors per FAT:     %u\r\n", ((dosFilesystemParameters*)buffer)->sectorsPerFat);
 	printf("Sectors per cluster: %u\r\n", ((dosFilesystemParameters*)buffer)->sectorsPerCluster);
@@ -1217,7 +1219,6 @@ void UndoAddPartition()
 	RecalculateAutoPartitionSize(false);
 }
 
-
 void TestDeviceAccess()
 {
 	ulong sectorNumber = 0;
@@ -1229,8 +1230,7 @@ void TestDeviceAccess()
 	InitializeScreenForTestDeviceAccess(message);
 
 	while(GetKey() == 0) {
-		sprintf(buffer, "%u", sectorNumber);
-		//_ultoa(sectorNumber, buffer, 10);
+		__ultoa(sectorNumber, buffer, 10);
 		Locate(messageLen, MESSAGE_ROW);
 		print(buffer);
 		print(" ...\x1BK");
