@@ -1,19 +1,38 @@
-	; Device-based driver for the sunrise IDE interface for Nextor
-	;
-    ; Version 0.1.7
-    ; By Konamiman
-	; By Piter Punk
-	; By FRS
+        ; Device-based driver for the Carnivore2 CompactFlash (which is based on Sunrise-IDE)
+        ;
+        ; Changes compared to original Sunrise-IDE driver:
+        ;   - Removed slave device code, CompactFlash will always be master-only
+        ;   - Added prove-of-concept for disk drive emulation
+        ;       - Uses last 1440 sectors of the disk to emulate a disk as 2nd LUN
+        ;       - In DOS1 mode ('1' pressed) or when CTRL is pressed at startup,
+        ;         only the emulated disk is provided (boot from emulated disk)
+        ;       - Emulated disk can be formatted in fdisk
+        ;
+        ; Ideas for future:
+        ;    - Only enable disk emulation when enabled, use last sector of disk
+        ;      for configuration
+        ;    - MSX-DOS tool to enable/disable emulation, the tool can check if
+        ;      there is room after the partition for this (now it is assumed)
+        ;    - Add possibility to emulate disk directly out of file. Tool must
+        ;      provide sector mapping in last sectors of disk, then reboot.
+        ;      Emulation this way only the first reboot so that sector mapping
+        ;      can be trusted
+        ;    - Possibility to 'mount' more than one disk the above way, possible
+        ;      to swap disks by pressing CODE+<num> for example
+        ;
+        ; Version 0.1.0
+        ; By Tim Brugman
+        ; By Konamiman
+        ; By Piter Punk
+        ; By FRS
 
-	;MASTER_ONLY constant must be defined externally to generate the master-only variant.
-
-	org	4000h
-	ds	4100h-$,0		; DRV_START must be at 4100h
+        org     4000h
+        ds      4100h-$,0               ; DRV_START must be at 4100h
 DRV_START:
 
-	.RELAB
+        .RELAB
 
-TESTADD	equ	0F3F5h
+TESTADD equ     0F3F5h
 
 ;A few Panasonic FS machines uses the area around C000-C400 at boot time,
 ;so better to not use C000; C400 will do.
@@ -28,25 +47,25 @@ TEMP_WORK equ 0C400h
 ;   0 for drive-based
 ;   1 for device-based
 
-DRV_TYPE	equ	1
+DRV_TYPE        equ     1
 
 ;Hot-plug devices support (device-based drivers only):
 ;   0 for no hot-plug support
 ;   1 for hot-plug support
 
-DRV_HOTPLUG	equ	0
+DRV_HOTPLUG     equ     1
 
-DEBUG	equ	0	;Set to 1 for debugging, 0 to normal operation
+DEBUG           equ     0       ;Set to 1 for debugging, 0 to normal operation
 
 ;Driver version
 
-VER_MAIN	equ	0
-VER_SEC		equ	1
-VER_REV		equ	7
+VER_MAIN        equ     0
+VER_SEC         equ     1
+VER_REV         equ     0
 
 
 ;Miscellaneous configuration
-PIOMODE3 equ 0FFFFh	; Configure devices to work on PIO MODE 3
+PIOMODE3 equ 0FFFFh     ; Configure devices to work on PIO MODE 3
 
 
 ;This is a very barebones driver. It has important limitations:
@@ -60,124 +79,124 @@ PIOMODE3 equ 0FFFFh	; Configure devices to work on PIO MODE 3
 ;
 ; IDE registers and bit definitions
 
-IDE_BANK	equ	4104h	;bit 0: enable (1) or disable (0) IDE registers
-				;bits 5-7: select 16K ROM bank
-IDE_DATA	equ	7C00h	;Data registers, this is a 512 byte area
-IDE_ERROR	equ	7E01h	;Error register
-IDE_FEAT	equ	7E01h	;Feature register
-IDE_SECCNT	equ	7E02h	;Sector count
-IDE_SECNUM	equ	7E03h	;Sector number (CHS mode)
-IDE_LBALOW	equ	7E03h	;Logical sector low (LBA mode)
-IDE_CYLOW	equ	7E04h	;Cylinder low (CHS mode)
-IDE_LBAMID	equ	7E04h	;Logical sector mid (LBA mode)
-IDE_CYHIGH	equ	7E05h	;Cylinder high (CHS mode)
-IDE_LBAHIGH	equ	7E05h	;Logical sector high (LBA mode)
-IDE_HEAD	equ	7E06h	;bits 0-3: Head (CHS mode), logical sector higher (LBA mode)
-IDE_STATUS	equ	7E07h	;Status register
-IDE_CMD		equ	7E07h	;Command register
-IDE_DEVCTRL	equ	7E0Eh	;Device control register
+IDE_BANK        equ     4104h   ;bit 0: enable (1) or disable (0) IDE registers
+                                ;bits 5-7: select 16K ROM bank
+IDE_DATA        equ     7C00h   ;Data registers, this is a 512 byte area
+IDE_ERROR       equ     7E01h   ;Error register
+IDE_FEAT        equ     7E01h   ;Feature register
+IDE_SECCNT      equ     7E02h   ;Sector count
+IDE_SECNUM      equ     7E03h   ;Sector number (CHS mode)
+IDE_LBALOW      equ     7E03h   ;Logical sector low (LBA mode)
+IDE_CYLOW       equ     7E04h   ;Cylinder low (CHS mode)
+IDE_LBAMID      equ     7E04h   ;Logical sector mid (LBA mode)
+IDE_CYHIGH      equ     7E05h   ;Cylinder high (CHS mode)
+IDE_LBAHIGH     equ     7E05h   ;Logical sector high (LBA mode)
+IDE_HEAD        equ     7E06h   ;bits 0-3: Head (CHS mode), logical sector higher (LBA mode)
+IDE_STATUS      equ     7E07h   ;Status register
+IDE_CMD         equ     7E07h   ;Command register
+IDE_DEVCTRL     equ     7E0Eh   ;Device control register
 
 ; Bits in the error register
 
-UNC	equ	6	;Uncorrectable Data Error
-WP	equ	6	;Write protected
-MC	equ	5	;Media Changed
-IDNF	equ	4	;ID Not Found
-MCR	equ	3	;Media Change Requested
-ABRT	equ	2	;Aborted Command
-NM	equ	1	;No media
+UNC     equ     6       ;Uncorrectable Data Error
+WP      equ     6       ;Write protected
+MC      equ     5       ;Media Changed
+IDNF    equ     4       ;ID Not Found
+MCR     equ     3       ;Media Change Requested
+ABRT    equ     2       ;Aborted Command
+NM      equ     1       ;No media
 
-M_ABRT	equ	100b ;(1 SHL ABRT)
+M_ABRT  equ     100b ;(1 SHL ABRT)
 
 ; Bits in the head register
 
-DEV	equ	4	;Device select: 0=master, 1=slave
-LBA	equ	6	;0=use CHS mode, 1=use LBA mode
+DEV     equ     4       ;Device select: 0=master, 1=slave
+LBA     equ     6       ;0=use CHS mode, 1=use LBA mode
 
-M_DEV	equ	10000b ;(1 SHL DEV)
-M_LBA	equ	1000000b ;(1 SHL LBA)
+M_DEV   equ     10000b ;(1 SHL DEV)
+M_LBA   equ     1000000b ;(1 SHL LBA)
 
 ; Bits in the status register
 
-BSY	equ	7	;Busy
-DRDY	equ	6	;Device ready
-DF	equ	5	;Device fault
-DRQ	equ	3	;Data request
-ERR	equ	0	;Error
+BSY     equ     7       ;Busy
+DRDY    equ     6       ;Device ready
+DF      equ     5       ;Device fault
+DRQ     equ     3       ;Data request
+ERR     equ     0       ;Error
 
-M_BSY	equ	10000000b ;(1 SHL BSY)
-M_DRDY	equ	1000000b ;(1 SHL DRDY)
-M_DF	equ	100000b ;(1 SHL DF)
-M_DRQ	equ	1000b ;(1 SHL DRQ)
-M_ERR	equ	1b ;(1 SHL ERR)
+M_BSY   equ     10000000b ;(1 SHL BSY)
+M_DRDY  equ     1000000b ;(1 SHL DRDY)
+M_DF    equ     100000b ;(1 SHL DF)
+M_DRQ   equ     1000b ;(1 SHL DRQ)
+M_ERR   equ     1b ;(1 SHL ERR)
 
 ; Bits in the device control register register
 
-nIEN	equ	1	;Disable interrupts
-SRST	equ	2	;Software reset
+nIEN    equ     1       ;Disable interrupts
+SRST    equ     2       ;Software reset
 
-M_nIEN	equ	10b ;(1 SHL nIEN)
-M_SRST	equ	100b ;(1 SHL SRST)
+M_nIEN  equ     10b ;(1 SHL nIEN)
+M_SRST  equ     100b ;(1 SHL SRST)
 
 ; IDE commands
 
 module ATACMD
-.PRDSECTRT	equ	#20
-.PWRSECTRT	equ	#30
-.DEVDIAG	equ	#90
-.IDENTIFY	equ	#EC
-.SETFEATURES	equ	#EF
+.PRDSECTRT      equ     #20
+.PWRSECTRT      equ     #30
+.DEVDIAG        equ     #90
+.IDENTIFY       equ     #EC
+.SETFEATURES    equ     #EF
 endmod
 
 module ATAPICMD
-.RESET		equ	#08
-.PACKET		equ	#A0
-.IDENTPACKET	equ	#A1
+.RESET          equ     #08
+.PACKET         equ     #A0
+.IDENTPACKET    equ     #A1
 endmod
 
 module PACKETCMD
-.RQSENSE	equ	#03	;
-.RDCAPACITY	equ	#25	; Read the media capacity
-.READ10		equ	#28	; Read sectors (16bit)
-.READ12		equ	#A8	; Read sectors (32bit)
-.WRITE10	equ	#2A	; Write sectors (16bit)
-.WRITE12	equ	#AA	; Write sectors (32bit)
-.GTMEDIASTAT	equ	#DA	; Get media status
+.RQSENSE        equ     #03     ;
+.RDCAPACITY     equ     #25     ; Read the media capacity
+.READ10         equ     #28     ; Read sectors (16bit)
+.READ12         equ     #A8     ; Read sectors (32bit)
+.WRITE10        equ     #2A     ; Write sectors (16bit)
+.WRITE12        equ     #AA     ; Write sectors (32bit)
+.GTMEDIASTAT    equ     #DA     ; Get media status
 endmod
 
 
 ;-----------------------------------------------------------------------------
 ;
 ; Standard BIOS entries
-CALSLT	equ	#001C
-DCOMPR	equ	#0020		; Compare register pairs HL and DE
-INITXT	equ	#006C
-CHSNS	equ	#009C		; Sense keyboard buffer for character
-CHGET	equ	#009F		; Get character from keyboard buffer
-CHPUT	equ	#00A2		; A=char
-BREAKX	equ	#00B7		; Check CTRL-STOP key directly
-CLS	equ	#00C3		; Chamar com A=0
-ERAFNK	equ	#00CC		; Erase function key display
-SNSMAT	equ	#0141		; Read row of keyboard matrix
-KILBUF	equ	#0156		; Clear keyboard buffer
-EXTROM	equ	#015F
-CHGCPU	equ	#0180
-GETCPU	equ	#0183
+CALSLT  equ     #001C
+DCOMPR  equ     #0020           ; Compare register pairs HL and DE
+INITXT  equ     #006C
+CHSNS   equ     #009C           ; Sense keyboard buffer for character
+CHGET   equ     #009F           ; Get character from keyboard buffer
+CHPUT   equ     #00A2           ; A=char
+BREAKX  equ     #00B7           ; Check CTRL-STOP key directly
+CLS     equ     #00C3           ; Chamar com A=0
+ERAFNK  equ     #00CC           ; Erase function key display
+SNSMAT  equ     #0141           ; Read row of keyboard matrix
+KILBUF  equ     #0156           ; Clear keyboard buffer
+EXTROM  equ     #015F
+CHGCPU  equ     #0180
+GETCPU  equ     #0183
 
 ; subROM functions
-SDFSCR	equ	#0185
-REDCLK	equ	#01F5
+SDFSCR  equ     #0185
+REDCLK  equ     #01F5
 
 ; System variables
-MSXVER	equ	#002D
-LINL40	equ	#F3AE		; Width
-LINLEN	equ	#F3B0
-BDRCLR	equ	#F3EB
-BASROM	equ	#FBB1
-INTFLG	equ	#FC9B
-JIFFY	equ	#FC9E
-SCRMOD	equ	#FCAF
-EXPTBL	equ	#FCC1
+MSXVER  equ     #002D
+LINL40  equ     #F3AE           ; Width
+LINLEN  equ     #F3B0
+BDRCLR  equ     #F3EB
+BASROM  equ     #FBB1
+INTFLG  equ     #FC9B
+JIFFY   equ     #FC9E
+SCRMOD  equ     #FCAF
+EXPTBL  equ     #FCC1
 
 
 ;-----------------------------------------------------------------------------
@@ -225,7 +244,7 @@ struct_start macro name
 module name
 root field_pointer
 field_pointer defl 0
-field BASE,0			; Offset to the base of the data structure 
+field BASE,0                    ; Offset to the base of the data structure 
 endm
 
 ;* Macro end
@@ -243,35 +262,36 @@ name equ field_pointer
 field_pointer defl field_pointer+size
 endm
 
-
-struct_start DEVINFO		; Contains information about a specific device
-field t321D,1
-field t7654,1
-;CHSRESERVED	ds 2	; Disabled to save space. 2 bytes won't be enough anyway
-field SECTSIZE,2	; Sector size for this device
-field pBASEWRK,2	; Cache pointer to go back to the base of the work area 
+struct_start DSKEMU     ; Contains information about the disk emulator
+field ENABLE,1          ; Disk emulation enabled
+field STARTSEC,4        ; Start sector for emulated disk
+field TEMPBUF,4         ; Current sector for emulated disk
 struct_end
 
-
 struct_start WRKAREA
-field BLKLEN,2	; Size of the block to be copied. ***Must be
-				; \the first element of the WRKAREA
-field PCTBUFF,16	; Buffer to send ATAPI PACKET commands
-field LDIRHLPR,8	; LDIR data transter helper routine. This is
-					; in RAM to speed up the R800 copy a lot.
-field MASTER,(:DEVINFO._SIZE)	; Offset to the MASTER data structure
-field SLAVE,(:DEVINFO._SIZE); Offset to the SLAVE data structure
-									  ; \*** It must follow the MASTER DEVINFO
+; Device info
+field t321D,1
+field t7654,1
+field SECTSIZE,2        ; Sector size for this device
+field pBASEWRK,2        ; Cache pointer to go back to the base of the work area 
+; Other
+field BLKLEN,2          ; Size of the block to be copied. ***Must be
+                        ;   the first element of the WRKAREA
+field PCTBUFF,16        ; Buffer to send ATAPI PACKET commands
+field LDIRHLPR,8        ; LDIR data transter helper routine. This is
+                        ;   in RAM to speed up the R800 copy a lot.
+field TEMP,1
+field DSKEMU,(:DSKEMU._SIZE)   ; Offset to the MASTER data structure
 struct_end
 
 
 struct_start WRKTEMP
-field pDEVMSG,2	; Pointer to the text "Master:" or "Slave:"
-field BUFFER,512	; Buffer for the IDENTIFY info
+field pDEVMSG,2 ; Pointer to the text "Master:" or "Slave:"
+field BUFFER,512        ; Buffer for the IDENTIFY info
 struct_end
 
 ; ATAPI/SCSI packet structures
-struct_start PCTRW10		; PACKET READ10/WRITE10 structure
+struct_start PCTRW10            ; PACKET READ10/WRITE10 structure
 field OPCODE,1
 field OPTIONS,1
 field LBA,4
@@ -280,7 +300,7 @@ field LENGHT,2
 field CONTROL,1
 struct_end
 
-struct_start PCTRW12		; PACKET READ12/WRITE12 structure
+struct_start PCTRW12            ; PACKET READ12/WRITE12 structure
 field OPCODE,1
 field OPTIONS,1
 field LBA,4
@@ -297,18 +317,18 @@ struct_end
 ; Error codes for DEV_RW and DEV_FORMAT
 ;
 
-_NCOMP	equ	0FFh
-_WRERR	equ	0FEh
-_DISK	equ	0FDh
-_NRDY	equ	0FCh
-_DATA	equ	0FAh
-_RNF	equ	0F9h
-_WPROT	equ	0F8h
-_UFORM	equ	0F7h
-_SEEK	equ	0F3h
-_IFORM	equ	0F0h
-_IDEVL	equ	0B5h
-_IPARM	equ	08Bh
+_NCOMP  equ     0FFh
+_WRERR  equ     0FEh
+_DISK   equ     0FDh
+_NRDY   equ     0FCh
+_DATA   equ     0FAh
+_RNF    equ     0F9h
+_WPROT  equ     0F8h
+_UFORM  equ     0F7h
+_SEEK   equ     0F3h
+_IFORM  equ     0F0h
+_IDEVL  equ     0B5h
+_IPARM  equ     08Bh
 
 ;-----------------------------------------------------------------------------
 ;
@@ -321,7 +341,7 @@ _IPARM	equ	08Bh
 ;  ld ix,GSLOT1
 ;  call CALBNK
 
-GSLOT1	equ	402Dh
+GSLOT1  equ     402Dh
 
 
 ;* This routine reads a byte from another bank.
@@ -332,14 +352,14 @@ GSLOT1	equ	402Dh
 ;  ld ix,RDBANK
 ;  call CALBNK
 
-RDBANK	equ	403Ch
+RDBANK  equ     403Ch
 
 
 ;* This routine temporarily switches kernel bank 0/3,
 ;  then jumps to CALBAS in MSX BIOS.
 ;  This is necessary so that kernel bank is correct in case of BASIC error.
 
-CALBAS	equ	403Fh
+CALBAS  equ     403Fh
 
 
 ;* Call a routine in another bank.
@@ -349,7 +369,7 @@ CALBAS	equ	403Fh
 ;         AF' = AF for the routine
 ;         BC, DE, HL, IY = input for the routine
 
-CALBNK	equ	4042h
+CALBNK  equ     4042h
 
 
 ;* Get in IX the address of the SLTWRK entry for the slot passed in A,
@@ -365,7 +385,7 @@ CALBNK	equ	4042h
 ;  ld ix,GWORK
 ;  call CALBNK
 
-GWORK	equ	4045h
+GWORK   equ     4045h
 
 
 ;* Call a routine in the driver bank.
@@ -381,12 +401,12 @@ GWORK	equ	4045h
 ; Note that register IX can't be used as input parameter, it is
 ; corrupted before reaching the invoked code.
 
-CALDRV	equ	4048h
+CALDRV  equ     4048h
 
 
 ;* Set the current bank
 ; Must be used exclusively by the MSXBOOT routine
-SETBNK	equ	7FD0h
+SETBNK  equ     7FD0h
 
 
 ;-----------------------------------------------------------------------------
@@ -394,7 +414,7 @@ SETBNK	equ	7FD0h
 ; Built-in format choice strings
 ;
 
-NULL_MSG  equ     741Fh	;Null string (disk can't be formatted)
+NULL_MSG  equ     741Fh ;Null string (disk can't be formatted)
 SING_DBL  equ     7420h ;"1-Single side / 2-Double side"
 
 
@@ -402,45 +422,47 @@ SING_DBL  equ     7420h ;"1-Single side / 2-Double side"
 ;
 ; Driver signature
 ;
-	db	"NEXTOR_DRIVER",0
+        db      "NEXTOR_DRIVER",0
 
 ; Driver flags:
 ;    bit 0: 0 for drive-based, 1 for device-based
 ;    bit 1: 1 for hot-plug devices supported (device-based drivers only)
+;    bit 2: 1 if the driver implements the DRV_CONFIG routine
 
-	db 1+(2*DRV_HOTPLUG)
+        db DRV_TYPE + 2 * DRV_HOTPLUG + 4
 
 ;Reserved byte
-	db	0
+        db      0
 
 ;Driver name
 
 DRV_NAME:
-	db	"Sunrise IDE"
-	ds	32-($-DRV_NAME)," "
+        db      "Sunrise IDE"
+        ds      32-($-DRV_NAME)," "
 
 ;Jump table
 
-	jp	DRV_TIMI
-	jp	DRV_VERSION
-	jp	DRV_INIT
-	jp	DRV_BASSTAT
-	jp	DRV_BASDEV
+        jp      DRV_TIMI
+        jp      DRV_VERSION
+        jp      DRV_INIT
+        jp      DRV_BASSTAT
+        jp      DRV_BASDEV
         jp      DRV_EXTBIO
         jp      DRV_DIRECT0
         jp      DRV_DIRECT1
         jp      DRV_DIRECT2
         jp      DRV_DIRECT3
         jp      DRV_DIRECT4
+        jp      DRV_CONFIG
 
-	ds	15
+        ds      12
 
-	jp	DEV_RW
-	jp	DEV_INFO
-	jp	DEV_STATUS
-	jp	LUN_INFO
-	jp	DEV_FORMAT
-	jp	DEV_CMD
+        jp      DEV_RW
+        jp      DEV_INFO
+        jp      DEV_STATUS
+        jp      LUN_INFO
+        jp      DEV_FORMAT
+        jp      DEV_CMD
 
 
 ;-----------------------------------------------------------------------------
@@ -449,7 +471,7 @@ DRV_NAME:
 ; (at 50 or 60Hz), but only if DRV_INIT returns Cy=1 on its first execution.
 
 DRV_TIMI:
-	ret
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -485,174 +507,170 @@ DRV_TIMI:
 ;     get two allocated drives.)
 
 DRV_INIT:
-	ld	hl,WRKAREA._SIZE	; size of work area
-	or	a		; Clear Cy
-	ret	z
+        or      a               ; Is this the 1st call? 
+        jr      nz,.call2       ; No, skip
+; 1st call:
+
+        ld      hl,WRKAREA._SIZE        ; size of work area
+        or      a                       ; Clear Cy
+        ret
 
 ; 2nd call: 
-	ld	a,(CHGCPU)
-	cp	#C3		; IS CHGCPU present?
-	jr	nz,.call2ini
-	call	GETCPU
-	push	af		; Save the current CPU
-	ld	a,#82
-	call	CHGCPU		; Enable the turbo
+.call2:
+
+        ld      a,(CHGCPU)
+        cp      #C3             ; IS CHGCPU present?
+        jr      nz,.call2ini
+        call    GETCPU
+        push    af              ; Save the current CPU
+        ld      a,#82
+        call    CHGCPU          ; Enable the turbo
 .call2ini:
-	call	MYSETSCR
+        call    MYSETSCR
 
-	ld	de,INFO_S
-	call	PRINT
+        ld      de,INFO_S
+        call    PRINT
 
-	xor	a			; Request the WorkArea base pointer
-	call	MY_GWORK
-	call	INIWORK			; Initialize the work-area
-	call	IDE_ON
+        xor     a                       ; Request the WorkArea base pointer
+        call    MY_GWORK
+        call    INIWORK                 ; Initialize the work-area
+        call    IDE_ON
 
-.init:	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),#FE	; error: No master detected yet
-	ld	de,INIT_S		; Print "Initializing: "
-	call	PRINT
-	ld	a,M_DEV			; Select SLAVE
-	call	WAIT_BSY		; Is the it alive?
-	jr	c,.reset		; No, reset everyone
-	xor	a			; select MASTER
-	call	SELDEV
-	call	WAIT_BSY		; Is the it alive?
-	jr	nc,.diag		; Yes, skip
+        ; ***Workaround for Nextor not passing the status of the CTRL
+        ; and SHIFT keys at the moment of the beep to the DRV_CONFIG
+        ; and DRV_INIT functions 
+        ld      a,6
+        call    SNSMAT
+        ld      (IX+WRKAREA.TEMP),a     ; TEMP = KBD-row6
+
+.init:  ld      (ix+WRKAREA.t321D),#FE   ; error: No master detected yet
+        ld      de,INIT_S               ; Print "Initializing: "
+        call    PRINT
+        ld      a,M_DEV                 ; Select SLAVE
+        call    WAIT_BSY                ; Is the it alive?
+        jr      c,.reset                ; No, reset everyone
+        xor     a                       ; select MASTER
+        call    SELDEV
+        call    WAIT_BSY                ; Is the it alive?
+        jr      nc,.diag                ; Yes, skip
 .reset:
-	call	RESET_ALL
+        call    RESET_ALL
 .diag:
-	ld	a,(INTFLG)
-	cp	3			; CTRL+STOP pressed?
-	jp	z,INIT_ABORTED
-	ld	a,ATACMD.DEVDIAG	; Both drives will execute diagnostics
-	ld	(IDE_CMD),a
-	call	WAIT_RST		; Wait for the diagnostics to end
-	ld	a,(INTFLG)
-	cp	3			; CTRL+STOP pressed?
-	jp	z,INIT_ABORTED
-	ld	a,(IDE_STATUS)
-	and	M_ERR			; Error bit set?
-	jr	nz,.diagchk		; on error, skip to diagnostics
-	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),0	; Clear undetected master error
+        ld      a,(INTFLG)
+        cp      3                       ; CTRL+STOP pressed?
+        jp      z,INIT_ABORTED
+        ld      a,ATACMD.DEVDIAG        ; Both drives will execute diagnostics
+        ld      (IDE_CMD),a
+        call    WAIT_RST                ; Wait for the diagnostics to end
+        ld      a,(INTFLG)
+        cp      3                       ; CTRL+STOP pressed?
+        jp      z,INIT_ABORTED
+        ld      a,(IDE_STATUS)
+        and     M_ERR                   ; Error bit set?
+        jr      nz,.diagchk             ; on error, skip to diagnostics
+        ld      (ix+WRKAREA.t321D),0     ; Clear undetected master error
 
 .diagchk:
-	; Check the diagnostics and print the results 
-	call	CHKDIAG
-	push	af
-	ld	de,INIT_S		; Print "Initializing: "
-	call	PRINT
-	pop	af
-	ld	de,OK_S
-	call	nc,PRINT
-	ld	de,ERROR_S
-	call	c,PRINT
+        ; Check the diagnostics and print the results 
+        call    CHKDIAG
+        push    af
+        ld      de,INIT_S               ; Print "Initializing: "
+        call    PRINT
+        pop     af
+        ld      de,OK_S
+        call    nc,PRINT
+        ld      de,ERROR_S
+        call    c,PRINT
 
-.chkmaster:
-	ld	de,MASTER_S
-	ld	(TEMP_WORK+WRKTEMP.pDEVMSG),de
-	call	PRINT
+        ; Print 'Master device:'
+        ld      de,MASTER_S
+        ld      (TEMP_WORK+WRKTEMP.pDEVMSG),de
+        call    PRINT
 
-	; Check for DIAGNOSTICS errors
-	ld	a,(ix+WRKAREA.MASTER+DEVINFO.t321D)
-	ld	c,a
-	bit	7,a			; Any error detected by DIAGNOSE?
-	jr	z,.detinit		; No, skip
-	call	DIAGERRPRT		; Print the diagnostic error
-	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),0	; This device isn't available
-	; Errors 0 and 5 are critical and cannot proceed
-	ld	a,c
-	and	#7F			; Crop erro code
-	jr	z,.critical
-	cp	5			; Microcontroller error on master?
-	jp	nz,.chkslave		; No: slave can still be used safely
+        ; Check for DIAGNOSTICS errors
+        ld      a,(ix+WRKAREA.t321D)
+        ld      c,a
+        bit     7,a                     ; Any error detected by DIAGNOSE?
+        jr      z,.detinit              ; No, skip
+        call    DIAGERRPRT              ; Print the diagnostic error
+        ld      (ix+WRKAREA.t321D),0     ; This device isn't available
+        ; Errors 0 and 5 are critical and cannot proceed
+        ld      a,c
+        and     #7F                     ; Crop erro code
+        jr      z,.critical
+        cp      5                       ; Microcontroller error on master?
+        jp      nz,.chkslave            ; No: slave can still be used safely
 .critical:
-	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),0	; No master = no slave
-	jp	DRV_INIT_END		; Finish DEV_INIT
+        jp      DRV_INIT_END            ; Finish DEV_INIT
 
 .detinit:
-	ld	a,M_DEV			; Select SLAVE
-	call	SELDEV
-	call	WAIT_RST		; wait until ready
-	jr	nc,.detmaster
-	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),#80	; Slave has an error
-
-.detmaster:
-	call	RESET_ALL.ataonly
-	push	ix
-	ld	de,WRKAREA.MASTER
-	add	ix,de			; Point ix to the MASTER work area
-	xor	a			; Select MASTER
-	call	DETDEV
-	pop	ix
-	ld	a,(ix+WRKAREA.MASTER+DEVINFO.t321D)
-	and	3		; There can't be a slave without a master
-	jr	z,INIT_MASTERFAIL	; Finish DEV_INIT
+        call    RESET_ALL.ataonly
+        xor     a                       ; Select MASTER
+        call    DETDEV
+        ld      a,(ix+WRKAREA.t321D)
+        and     3                       ; There can't be a slave without a master
+        jr      z,INIT_MASTERFAIL       ; Finish DEV_INIT
 
 .chkslave:
-	ifndef MASTER_ONLY
+        ; Slave is 'emulated disk'
+        ld      de,SLAVE_S
+        ld      (TEMP_WORK+WRKTEMP.pDEVMSG),de
+        call    PRINT
 
-	ld	de,SLAVE_S
-	ld	(TEMP_WORK+WRKTEMP.pDEVMSG),de
-	call	PRINT
+        bit     1,(IX+WRKAREA.TEMP)     ; ***Was CTRL pressed on boot?
+        jr      nz,.noctrl              ; No, skip
 
-	; Check for DIAGNOSTICS errors
-	ld	a,(ix+WRKAREA.SLAVE+DEVINFO.t321D)
-	bit	7,a			; Any error detected by DIAGNOSE?
-	jr	z,.detslave		; No, skip to detection
+        ld      de,DSKEMU_EXCL_S        ; Enable disk emulation in 'exclusive' mode
+        call    PRINT
+        ld      a,2
+        jr      .setdskemu
 
-	call	DIAGERRPRT		; Print the diagnostic error
-	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),0	; This device isn't available
-	jp	DRV_INIT_END
+.noctrl:
+        ld      de,DSKEMU_ON_S          ; Enable disk emulation
+        call    PRINT
+        ld      a,1
+        ;jr      .setdskemu
 
-.detslave:
-	push	ix
-	ld	de,WRKAREA.SLAVE+DEVINFO.BASE
-	add	ix,de			; Point ix to the SLAVE work area
-	ld	a,M_DEV			; Select SLAVE
-	call	DETDEV
-	pop	ix
+.setdskemu:                             ; Set the disk emulation mode
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.ENABLE),a
 
-	endif
-
-	; Reset all devices to finish
+        ; Reset all devices to finish
 END_DETECT:
-	call	RESET_ALL
+        call    RESET_ALL
 
-	;--- End of the initialization procedure
+        ;--- End of the initialization procedure
 DRV_INIT_END:
-	call	IDE_OFF
-	call	INICHKSTOP
-	ld	de,CRLF_S	; Skip a line for the next driver
-	call	PRINT
+        call    IDE_OFF
+        call    INICHKSTOP
+        ld      de,CRLF_S       ; Skip a line for the next driver
+        call    PRINT
+if DEBUG
+        call    WAITKEY
+endif
 
-	; ***Workaround for a bug in Nextor that causes it to freeze if
-	; CTRL+STOP was pressed on boot
-	ld	a,(INTFLG)
-	cp	3		; Is CTRL+STOP still signaled?
-	jr	nz,.restCPU	; no, skip
-	xor	a
-	ld	(INTFLG),a	; Clear CTRL+STOP otherwise Nextor will freeze
+        ; ***Workaround for a bug in Nextor that causes it to freeze if
+        ; CTRL+STOP was pressed on boot
+        call    CLRCTRLSTOP
 
-.restCPU:	; Restore the CPU if necessary
-	ld	a,(CHGCPU)
-	cp	#C3		; IS CHGCPU present?
-	ret	nz
-	pop	af
-	or	#80
-	jp	CHGCPU
+        ; Restore the CPU if necessary
+        ld      a,(CHGCPU)
+        cp      #C3             ; IS CHGCPU present?
+        ret     nz
+        pop     af
+        or      #80
+        jp      CHGCPU
 
 
 INIT_ABORTED:
-	ld	de,ABORTED_S		; Print "<aborted>"
-	jr	INIT_MASTERFAIL.end
+        ld      de,ABORTED_S            ; Print "<aborted>"
+        jr      INIT_MASTERFAIL.end
 
 INIT_MASTERFAIL:
-	ld	de,DIAGS_S.nomaster	; Print "failed">
-	call	PRINT
-.end:	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),0
-	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),0
-	jr	DRV_INIT_END
-
+        ld      de,DIAGS_S.nomaster     ; Print "failed">
+        call    PRINT
+.end:   ld      (ix+WRKAREA.t321D),0
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.ENABLE),0
+        jr      DRV_INIT_END
 
 
 
@@ -661,136 +679,138 @@ INIT_MASTERFAIL:
 ; Input: A=target device
 ;        (TEMP_WORK+WRKTEMP.pDEVMSG): Pointer to the "Master" or "Slave" text
 DETDEV:
-	ld	c,a			; c=target device
-	ld	de,DETECT_S		; Print "detecting"
-	call	PRINT
+        ld      c,a                     ; c=target device
+        ld      de,DETECT_S             ; Print "detecting"
+        call    PRINT
 
-	ld	a,(INTFLG)
-	cp	3			; Was CTRL+STOP signaled?
-        jp	z,.aborted		; Yes, skip
+        ld      a,(INTFLG)
+        cp      3                       ; Was CTRL+STOP signaled?
+        jp      z,.aborted              ; Yes, skip
 
-	ld	a,c			; Select device
-	call	SELDEV
-	call	WAIT_BSY		; wait until ready
-	jp	c,.nodev
- 	call	DISDEVINT		; Disable interrupts
-	jp	c,.nodev
+        ld      a,c                     ; Select device
+        call    SELDEV
+        call    WAIT_BSY                ; wait until ready
+        jp      c,.nodev
+        call    DISDEVINT               ; Disable interrupts
+        jp      c,.nodev
 
-	ld      a,'.'			; Print the FIRST dot
-	call    CHPUT
-	;--- Get the device type 
-	call	GETDEVTYPE		; Get the device type
-	ei
-	ld	(ix+DEVINFO.t321D),a
-	jp	c,.nodev
-	cp	#FF
-	jp	z,.unknown
+        ld      a,'.'                   ; Print the FIRST dot
+        call    CHPUT
+        ;--- Get the device type 
+        call    GETDEVTYPE              ; Get the device type
+        ei
+        ld      (ix+WRKAREA.t321D),a
+        jp      c,.nodev
+        cp      #FF
+        jp      z,.unknown
 
-	;---Configure the PIO transfer mode
+        ;---Configure the PIO transfer mode
  IFDEF PIOMODE3
-	ld	a,3			; Set transfer mode
-	ld	(IDE_FEAT),a
-	
-	ld	a,#8+#3			; PIO flow control, mode 3, so
-					; IORDY becomes functional
-	ld	(IDE_SECCNT),a
+        ld      a,3                     ; Set transfer mode
+        ld      (IDE_FEAT),a
+        
+        ld      a,#8+#3                 ; PIO flow control, mode 3, so
+                                        ; IORDY becomes functional
+        ld      (IDE_SECCNT),a
 
-	ld	a,ATACMD.SETFEATURES
-	ld	(IDE_CMD),a
-	call	WAIT_BSY
-	jr	c,.unsupported		; No PIO3? This device is too old
+        ld      a,ATACMD.SETFEATURES
+        ld      (IDE_CMD),a
+        call    WAIT_BSY
+        jr      c,.unsupported          ; No PIO3? This device is too old
  ENDIF
 
-	;--- Get the name of the device 
-	;(IDENTIFY device data on TEMP_WORK+WRKTEMP.BUFFER)
+        ;--- Get the name of the device 
+        ;(IDENTIFY device data on TEMP_WORK+WRKTEMP.BUFFER)
 .getinfo:
-	ld	de,(TEMP_WORK+WRKTEMP.pDEVMSG)
-	call	PRINT
+        ld      de,(TEMP_WORK+WRKTEMP.pDEVMSG)
+        call    PRINT
 
-	;Print the device name.
-	ld	hl,TEMP_WORK+WRKTEMP.BUFFER+27*2
-	ld	b,20
-	call	.prtword
+        ;Print the device name
+        ld      de,NAMEPREFIX_S
+        call    PRINT
+        ld      hl,TEMP_WORK+WRKTEMP.BUFFER+27*2
+        ld      b,20
+        call    .prtword
 
-	; Print the firmware version
-	ld	hl,TEMP_WORK+WRKTEMP.BUFFER+23*2
-	ld	b,4
-	call	.prtword
+        ; Print the firmware version
+        ld      hl,TEMP_WORK+WRKTEMP.BUFFER+23*2
+        ld      b,4
+        call    .prtword
 
-	; Print the device characteristics
-	ld	de,DETECT_S.oparenthesis
-	call	PRINT
-	ld	a,(ix+DEVINFO.t321D)
-	and	3			; Crop devtype
-	ld	de,DETECT_S.chs
-	dec	a
-	jr	z,.printdevtype
-	ld	de,DETECT_S.lba
-	dec	a
-	jr	z,.printdevtype
-	ld	de,DETECT_S.atapi
+        ; Print the device characteristics
+        ld      de,DETECT_S.oparenthesis
+        call    PRINT
+        ld      a,(ix+WRKAREA.t321D)
+        and     3                       ; Crop devtype
+        ld      de,DETECT_S.chs
+        dec     a
+        jr      z,.printdevtype
+        ld      de,DETECT_S.lba
+        dec     a
+        jr      z,.printdevtype
+        ld      de,DETECT_S.atapi
 .printdevtype:
-	call	PRINT
+        call    PRINT
 
-	ld	a,')'
-	call	CHPUT
-	ld	de,CRLF_S
-	jp	PRINT
-
-
+        ld      a,')'
+        call    CHPUT
+        ld      de,CRLF_S
+        jp      PRINT
 
 
 
-	; --- Print an word string
-	; input: HL=string ponter
-	;         B=Number of words to print 
+
+
+        ; --- Print an word string
+        ; input: HL=string ponter
+        ;         B=Number of words to print 
 .prtword:
-	ld	c,(hl)
-	inc	hl
-	ld	a,(hl)
-	inc	hl
-	call	CHPUT
-	ld	a,c
-	call	CHPUT
-	djnz	.prtword
-	ret
+        ld      c,(hl)
+        inc     hl
+        ld      a,(hl)
+        inc     hl
+        call    CHPUT
+        ld      a,c
+        call    CHPUT
+        djnz    .prtword
+        ret
 
-	;--- Unknown device
+        ;--- Unknown device
 .unknown:
-	ld	(ix+DEVINFO.t321D),a
-	ld	de,DETECT_S.unknown
-	call	PRINT
-	ld	a,h
-	call	PRINTHEXBYTE
-	ld	a,l
-	call	PRINTHEXBYTE
-	ld	a,'h'
-	call	CHPUT
-	ld	de,CRLF_S
-	jp	PRINT
+        ld      (ix+WRKAREA.t321D),a
+        ld      de,DETECT_S.unknown
+        call    PRINT
+        ld      a,h
+        call    PRINTHEXBYTE
+        ld      a,l
+        call    PRINTHEXBYTE
+        ld      a,'h'
+        call    CHPUT
+        ld      de,CRLF_S
+        jp      PRINT
 
-	;--- Unsupported device (either too old or too new)
+        ;--- Unsupported device (either too old or too new)
 .unsupported:
-	ld	de,DETECT_S.unsupported
-	jr	.nodevreason
+        ld      de,DETECT_S.unsupported
+        jr      .nodevreason
 
-	;--- No device was found
+        ;--- No device was found
 .nodev:
-	ld	de,NODEVS_S
+        ld      de,NODEVS_S
 
-	;--- Prints the reason why there will be no device reported here
+        ;--- Prints the reason why there will be no device reported here
 .nodevreason:
-	ld	(ix+DEVINFO.t321D),0	
-	push	de
-	ld	de,(TEMP_WORK+WRKTEMP.pDEVMSG)
-	call	PRINT			; Clear previous label message
-	pop	de
-	jp	PRINT
+        ld      (ix+WRKAREA.t321D),0    
+        push    de
+        ld      de,(TEMP_WORK+WRKTEMP.pDEVMSG)
+        call    PRINT                   ; Clear previous label message
+        pop     de
+        jp      PRINT
 
-	;--- Dectection aborted by the user
+        ;--- Dectection aborted by the user
 .aborted:
-	ld	de,ABORTED_S
-	jr	.nodevreason
+        ld      de,ABORTED_S
+        jr      .nodevreason
 
 ;-----------------------------------------------------------
 WAIT_RST:
@@ -803,41 +823,41 @@ WAIT_RST:
 ; Step-1: Fast reset
 ; Will catch devices that reset quicly, like CFs and HDDs that are already spinning
 
-	ld	de,5*60			; Wait for up to 5s
+        ld      de,5*60                 ; Wait for up to 5s
 .wait1:
-	ld	a,e
-	and	127			; Is it the time to print a dot?
+        ld      a,e
+        and     127                     ; Is it the time to print a dot?
         ld      a,'.'
-        call    z,CHPUT			;Yes, print dots while waiting
-	call	BREAKX
-	ret	c
-        ld      bc,#0505		;5 fast retries for 5 short pauses 
+        call    z,CHPUT                 ;Yes, print dots while waiting
+        call    BREAKX
+        ret     c
+        ld      bc,#0505                ;5 fast retries for 5 short pauses 
 .wait2:
-	ld	a,(INTFLG)
-	cp	3			; was CTRL+STOP still signaled?
-	ret	z
+        ld      a,(INTFLG)
+        cp      3                       ; was CTRL+STOP still signaled?
+        ret     z
         ld      a,(IDE_STATUS)
-	and	M_BSY
-	ret	z		 	; This ATA device has finished its reset
+        and     M_BSY
+        ret     z                       ; This ATA device has finished its reset
         djnz    .wait2
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	dec	c
-        jr	nz,.wait2
-	dec	de
-	ld	a,e
-	or	d
-	halt				;Give the device some time to breath
-	jr	nz,.wait1
-	scf
-	ret
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        dec     c
+        jr      nz,.wait2
+        dec     de
+        ld      a,e
+        or      d
+        halt                            ;Give the device some time to breath
+        jr      nz,.wait1
+        scf
+        ret
 
 ;Check that a device is present and usable.
 ;Input:  DIAGNOSTICS issued successfully.
 ;Output: A=devtype. 0=nodev, 1=CHS, 2=LBA, 3=ATAPI
-;	 Cy=0 for device ok, 1 for no device or not usable.
+;        Cy=0 for device ok, 1 for no device or not usable.
 ;        If device ok, 50 first bytes of IDENTIFY device copied to TEMP_WORK+WRKTEMP.
 
 GETDEVTYPE:
@@ -847,90 +867,90 @@ GETDEVTYPE:
 ;         When Cy=on, HL will contain the signature of the unknown device
 
 ; Notes:
-	; Device Signatures are checked according to the ATA/ATAPI Command Set-3
-	; (ACS-3) revision-5 document, page-347.
+        ; Device Signatures are checked according to the ATA/ATAPI Command Set-3
+        ; (ACS-3) revision-5 document, page-347.
 
-	;	 	PATA	PATAPI	SATA	SATAPI
-	; COUNT    :	01h	01h	01h	01h
-	; LBA 23-16:	00h	EBh	C3h	96h
-	; LBA  8-15:	00h	14h	3Ch	69h
-	; LBA   0-7:	01h	01h	01h	01h
+        ;               PATA    PATAPI  SATA    SATAPI
+        ; COUNT    :    01h     01h     01h     01h
+        ; LBA 23-16:    00h     EBh     C3h     96h
+        ; LBA  8-15:    00h     14h     3Ch     69h
+        ; LBA   0-7:    01h     01h     01h     01h
 
-	; This signatures are output by the following commands:
-	; - DEVICE RESET	(08h)
-	; - DEVICE DIAGNOSTIC	(90h)
-	; - IDENTIFY DEVICE	(ECh)
-	; - READ SECTOR(S)	(20h)
+        ; This signatures are output by the following commands:
+        ; - DEVICE RESET        (08h)
+        ; - DEVICE DIAGNOSTIC   (90h)
+        ; - IDENTIFY DEVICE     (ECh)
+        ; - READ SECTOR(S)      (20h)
 
-	; Note by Piter: Not all devices respect this. One of my CompactFlash
-	; cards never have  Sector Count = 01 after reset.
-	;ld	a,(IDE_SECCNT)
-	;cp	1
-	;jr	nz,INIT_CHECK_NODEV
+        ; Note by Piter: Not all devices respect this. One of my CompactFlash
+        ; cards never have  Sector Count = 01 after reset.
+        ;ld     a,(IDE_SECCNT)
+        ;cp     1
+        ;jr     nz,INIT_CHECK_NODEV
 
-	ld	hl,(IDE_LBAMID)
-	ld	de,#EB14		; PATAPI signature?
-	rst	DCOMPR
-	ld	a,3			; devtype=ATAPI
-	jr	z,.identify
+        ld      hl,(IDE_LBAMID)
+        ld      de,#EB14                ; PATAPI signature?
+        rst     DCOMPR
+        ld      a,3                     ; devtype=ATAPI
+        jr      z,.identify
 
-	ld	de,#9669		; SATAPI signature?
-	rst	DCOMPR
-	ld	a,3			; devtype=ATAPI
-	jr	z,.identify
+        ld      de,#9669                ; SATAPI signature?
+        rst     DCOMPR
+        ld      a,3                     ; devtype=ATAPI
+        jr      z,.identify
 
-	ld	de,#0000		; PATA signature?
-	rst	DCOMPR
-	ld	a,1			; devtype=CHS
-	jr	z,.identify
+        ld      de,#0000                ; PATA signature?
+        rst     DCOMPR
+        ld      a,1                     ; devtype=CHS
+        jr      z,.identify
 
-	ld	de,#C33C		; SATA signature?
-	rst	DCOMPR
-	ld	a,2			; devtype=LBA
-	jr	z,.identify
+        ld      de,#C33C                ; SATA signature?
+        rst     DCOMPR
+        ld      a,2                     ; devtype=LBA
+        jr      z,.identify
 
-	ld	de,#7F7F		; Unconnected signature?
-	rst	DCOMPR
-	scf
-	ret	z			; Yes, quit with Cy
+        ld      de,#7F7F                ; Unconnected signature?
+        rst     DCOMPR
+        scf
+        ret     z                       ; Yes, quit with Cy
 
-	ld	de,#FFFF		; Unconnected signature?
-	rst	DCOMPR
-	scf
-	ret	z			; Yes, quit with Cy
+        ld      de,#FFFF                ; Unconnected signature?
+        rst     DCOMPR
+        scf
+        ret     z                       ; Yes, quit with Cy
 
-.unkdev:	; Unknown device
-	ld	a,#FF
-	or	a
-	ret
+.unkdev:        ; Unknown device
+        ld      a,#FF
+        or      a
+        ret
 
 .identify:
-	ld	b,a			; b=devtype
-	cp	3			; ATAPI?
-	ld	a,ATACMD.IDENTIFY	;Send IDENTIFY commad
-	jr	c,.identify2
-	ld	a,ATAPICMD.IDENTPACKET	;Send IDENTIFY PACKET commad
+        ld      b,a                     ; b=devtype
+        cp      3                       ; ATAPI?
+        ld      a,ATACMD.IDENTIFY       ;Send IDENTIFY commad
+        jr      c,.identify2
+        ld      a,ATAPICMD.IDENTPACKET  ;Send IDENTIFY PACKET commad
 .identify2:
-	di
-	call	PIO_CMD			
-	ld	a,0			; Return 0 on error
-	ret	c
-	ld	a,b			; a=devtype
-	ld	hl,IDE_DATA
-	ld	de,TEMP_WORK+WRKTEMP.BUFFER
-	ld	bc,512			;Read the IDENTIFY packet
-	ldir
-	ei
-	cp	2			; SATA or ATAPI?
-	ret	nc			; Yes, return
+        di
+        call    PIO_CMD                 
+        ld      a,0                     ; Return 0 on error
+        ret     c
+        ld      a,b                     ; a=devtype
+        ld      hl,IDE_DATA
+        ld      de,TEMP_WORK+WRKTEMP.BUFFER
+        ld      bc,512                  ;Read the IDENTIFY packet
+        ldir
+        ei
+        cp      2                       ; SATA or ATAPI?
+        ret     nc                      ; Yes, return
 
 .chkLBA:
-	ld      a,(TEMP_WORK+WRKTEMP.BUFFER+49*2+1)
-	and	2			; LBA supported?
-	ld	a,1			; devtype=CHS
-	ret	z			; No, return
-	inc	a			; devtype=LBA
-	ret
+        ld      a,(TEMP_WORK+WRKTEMP.BUFFER+49*2+1)
+        and     2                       ; LBA supported?
+        ld      a,1                     ; devtype=CHS
+        ret     z                       ; No, return
+        inc     a                       ; devtype=LBA
+        ret
 
 
 
@@ -945,10 +965,10 @@ GETDEVTYPE:
 ;         C = Revision number
 
 DRV_VERSION:
-	ld	a,VER_MAIN
-	ld	b,VER_SEC
-	ld	c,VER_REV
-	ret
+        ld      a,VER_MAIN
+        ld      b,VER_SEC
+        ld      c,VER_REV
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -958,8 +978,8 @@ DRV_VERSION:
 ; must be called instead of CALBAS in MSX BIOS.
 
 DRV_BASSTAT:
-	scf
-	ret
+        scf
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -969,8 +989,8 @@ DRV_BASSTAT:
 ; must be called instead of CALBAS in MSX BIOS.
 
 DRV_BASDEV:
-	scf
-	ret
+        scf
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -981,7 +1001,7 @@ DRV_BASDEV:
 ; It is entered with D'=1.
 
 DRV_EXTBIO:
-	ret
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -997,7 +1017,130 @@ DRV_DIRECT1:
 DRV_DIRECT2:
 DRV_DIRECT3:
 DRV_DIRECT4:
-	ret
+        ret
+
+;-----------------------------------------------------------------------------
+;
+; Get driver configuration 
+; (bit 2 of driver flags must be set if this routine is implemented)
+;
+; Input:
+;   A = Configuration index
+;   BC, DE, HL = Depends on the configuration
+;
+; Output:
+;   A = 0: Ok
+;       1: Configuration not available for the supplied index
+;   BC, DE, HL = Depends on the configuration
+;
+; * Get number of drives at boot time (for device-based drivers only):
+;   Input:
+;     A = 1
+;     B = 0 for DOS 2 mode, 1 for DOS 1 mode
+;   Output:
+;     B = number of drives
+;
+; * Get default configuration for drive
+;   Input:
+;     A = 2
+;     B = 0 for DOS 2 mode, 1 for DOS 1 mode
+;     C = Relative drive number at boot time (0~n)
+;   Output:
+;     B = Device index (1~7)
+;     C = LUN index
+;
+;
+; Note: The boot sequence is a bit unconventional. First, the system boots
+; in DOS2 mode, and calls DRV_CONFIG with A=1, if CTRL wasn't pressed. If
+; CTRL was pressed, it assumes 1 drive per interface without that call to
+; DRV_CONFIG.
+; After all devices are configured, the system calls DRV_CONFIG with A=2
+; just before it loads the NEXTOR.SYS file
+; At this point, it checks if the boot sector is DOS1, and also checks
+; if the "1" key is pressed. In either case, it will now boot the DOS1
+; kernel from the ROM, so this kernel calls again DRV_CONFIG with A=1 and
+; a bit later with A=2.
+
+
+; Note-2: I opened two bug reports related to the DRV_CONFIG function
+; https://github.com/Konamiman/Nextor/issues/12
+; https://github.com/Konamiman/Nextor/issues/15
+
+
+DRV_CONFIG:
+IF DEBUG
+        call    DRV_CONF2
+        jp      WAITKEY
+DRV_CONF2:
+        push    af
+        ld      a,'C'           ; DRV_CONFIG debug ID
+        call    PRTCHAR
+        pop     af
+        push    af
+        add     '0'             ; Config parameter 
+        call    PRTCHAR
+        ld      a,b             ; DOS mode 
+        add     '0'
+        call    PRTCHAR
+        pop     af
+ENDIF
+        cp      1
+        jr      nz,.tryC2
+
+        ; Config-1: Get number of drives at boot time
+        ; ***This function is called with the BIOS still present
+        ; on the frame-0
+
+        djnz    .twoDrives      ; Always request 2 drives for DOS2 mode
+                                ; it will be ignored if CTRL is pressed
+
+.C1dos1:; DOS1 mode is only executed way after DOS2 mode
+        ; Use 1 drive in DOS1 mode
+;.oneDrive:
+        call    MY_GWORK        ; IX=Work area pointer
+
+        ; If disk emulator enabled, use it as primary drive
+        ld      a,(IX+WRKAREA.DSKEMU+DSKEMU.ENABLE)
+        cp      1
+        jr      nz,.c1d1
+        inc     a
+        ld      (IX+WRKAREA.DSKEMU+DSKEMU.ENABLE),a
+.c1d1:
+        xor     a
+        ld      b,1
+        ret
+
+.twoDrives:
+        xor     a
+        ld      b,2
+        ret
+
+;----------------
+.tryC2: cp      2
+        jr      nz,.notavail
+        ; Config-2: Get default configuration for drive
+        ; ***This function is called without the BIOS presence
+        ; on the frame-0
+IF DEBUG
+        push    af
+        ld      a,c
+        add     '0'
+        call    PRTCHAR
+        pop     af
+ENDIF
+        ; Workaround for the Nextor CTRL+STOP freeze bug on boot
+        call    CLRCTRLSTOP
+
+        ld      b,c
+        inc     b       ; DRV x = DEV x+1 
+        ld      c,1     ; LUN=1
+        xor     a
+        ret
+
+;----------------
+.notavail:
+        ld      a,1
+        ret
 
 
 ;=====
@@ -1029,330 +1172,419 @@ DRV_DIRECT4:
 ;          B = Number of sectors actually read/written
 
 DEV_RW:
-	push	af
-	call	MY_GWORK	; ix=Work area pointer for this device
+        push    af              ; Save A + Cy
+        call    MY_GWORK
+        ld      a,(IX+WRKAREA.DSKEMU+DSKEMU.ENABLE)     ; Check if emu enabled (1 = enabled as 2nd disk, 2 = enabled as first disk)
+        or      a
+        jp      z,DEV_RW_NOEMU  ; not enabled
+        cp      2
+        jr      z,.chklun       ; as first drive
+        pop     af
+        push    af
+        cp      a,2             ; check 2nd drive
+        jr      nz,DEV_RW_NOEMU
+.chklun:
+        ld      a,c             ; Check LUN
+        cp      a,1
+        jr      z,DEV_RW_EMU
+        pop     af              ; Leave with error 'Invalid device or LUN'
+        ld      a,_IDEVL
+        ld      b,0
+        ret
+DEV_RW_EMU:
 
-	push	bc
-	ld	b,c		;b=LUN
-	call	CHECK_DEV_LUN
-	pop	bc
-	jp	c,DEV_RW_NODEV
+if DEBUG
+        ld      a,'!'
+        call    PRTCHAR
+        pop     af
+        push    af
+        ld      a,'w'
+        jr      c,.write
+        ld      a,'r'
+.write: call    PRTCHAR
+endif
 
-	dec	a
-	jr	z,DEV_RW2
-	ld	a,M_DEV
+        push    hl              ; Save HL/BC
+        push    bc
+
+        xor     a
+        call    MY_GWORK        ; ix=Base work area pointer
+        ld      l,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+0)
+        ld      h,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+1)
+        ex      de,hl
+        ld      c,(hl)
+        inc     hl
+        ld      b,(hl)
+        inc     hl
+        ex      de,hl
+        add     hl,bc
+        push    af
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+0),l
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+1),h
+
+        ld      l,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+2)
+        ld      h,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+3)
+        ex      de,hl
+        ld      c,(hl)
+        inc     hl
+        ld      b,(hl)
+        inc     hl
+        ex      de,hl
+        pop     af
+        adc     hl,bc
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+2),l
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+3),h
+
+if DEBUG
+        ld      a,'#'
+        call    PRTCHAR
+        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+3)
+        call    PRTHEXBYTE
+        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+2)
+        call    PRTHEXBYTE
+        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+1)
+        call    PRTHEXBYTE
+        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+0)
+        call    PRTHEXBYTE
+endif
+
+        push    ix
+        pop     hl
+        ld      de,WRKAREA.DSKEMU+DSKEMU.TEMPBUF
+        add     hl,de
+        ex      de,hl
+
+        pop     bc              ; Restore HL/BC
+        pop     hl
+
+        pop     af              ; Restore Carry
+
+        ld      a,1             ; Continue the read/write on device 1, LUN 1
+        ld      c,1
+        push    af
+
+DEV_RW_NOEMU:
+        push    bc
+        ld      b,c             ;b=LUN
+        call    CHECK_DEV_LUN
+        pop     bc
+        jp      c,DEV_RW_NODEV
+
+        dec     a
+        jr      z,DEV_RW2
+        ld      a,M_DEV
 DEV_RW2:
-	ld	c,a		;c=dev# in IDE format
+        ld      c,a             ;c=dev# in IDE format
 
-	ld	a,b
-	or	a
-	jr	nz,DEV_RW_NO0SEC
-	pop	af		;Discard the device number that was on stack
-	xor	a
-	ld	b,0
-	ret	
+        ld      a,b
+        or      a
+        jr      nz,DEV_RW_NO0SEC
+        pop     af              ;Discard the device number that was on stack
+        xor     a
+        ld      b,0
+        ret     
 DEV_RW_NO0SEC:
- 	ld iyl,e
- 	ld iyh,d
-	ld	a,(iy+3)
-	and	11110000b
-	jp	nz,DEV_RW_NOSEC	;Only 28 bit sector numbers supported
+        ld      iyl,e
+        ld      iyh,d
+        ld      a,(iy+3)
+        and     11110000b
+        jp      nz,DEV_RW_NOSEC ;Only 28 bit sector numbers supported
 
-	call	IDE_ON
+        call    IDE_ON
 
-	ld	a,(ix+DEVINFO.t321D)
-	and	3			; Crop devtype
-	cp	3			; ATAPI?
-	jp	z,DEV_ATAPI_RW
+        ld      a,(ix+WRKAREA.t321D)
+        and     3                       ; Crop devtype
+        cp      3                       ; ATAPI?
+        jp      z,DEV_ATAPI_RW
 
 DEV_ATA_RW:
-	ld	a,(iy+3)
-	or	M_LBA
-	or	c		; Mix with dev# in IDE format
-	call	SELDEV		; IDE_HEAD must be written first,
-	ld	a,(iy)		; or the other IDE_LBAxxx and IDE_SECCNT
-	ld	(IDE_LBALOW),a	; registers will not get a correct value
-	ld	e,(iy+1)	; (blueMSX issue?)
-	ld	d,(iy+2)
-	ld	(IDE_LBAMID),de
-	ld	a,b
-	ld	(IDE_SECCNT),a
-	
-	pop	af		; a=device number in Nextor format
-	jp	c,DEV_ATA_WR
+        ld      a,(iy+3)
+        or      M_LBA
+        or      c               ; Mix with dev# in IDE format
+        call    SELDEV          ; IDE_HEAD must be written first,
+        ld      a,(iy)          ; or the other IDE_LBAxxx and IDE_SECCNT
+        ld      (IDE_LBALOW),a  ; registers will not get a correct value
+        ld      e,(iy+1)        ; (blueMSX issue?)
+        ld      d,(iy+2)
+        ld      (IDE_LBAMID),de
+        ld      a,b
+        ld      (IDE_SECCNT),a
+        
+        pop     af              ; a=device number in Nextor format
+        jp      c,DEV_ATA_WR
 
-	;---
-	;---  ATA READ
-	;---
+        ;---
+        ;---  ATA READ
+        ;---
 DEV_ATA_RD:
-	ld	a,ATACMD.PRDSECTRT	; PIO read sector with retry
-	call	PIO_CMD
-	jp	c,DEV_RW_ERR
+        ld      a,ATACMD.PRDSECTRT      ; PIO read sector with retry
+        call    PIO_CMD
+        jp      c,DEV_RW_ERR
 
-	call	CHK_RW_FAULT
-	ret	c
-	ld	iyl,b		; iyl=number of blocks
-	ex	de,hl		; de=destination address
+        call    CHK_RW_FAULT
+        ret     c
+        ld      iyl,b           ; iyl=number of blocks
+        ex      de,hl           ; de=destination address
 
-	ld	bc,512		; block size  ***Hardcoded. Ignores (BLKLEN)
-	call	READ_DATA
-	jp	c,DEV_RW_ERR
-	call	IDE_OFF
-	xor	a		; A=0: No error.
-	ret
+        ld      bc,512          ; block size  ***Hardcoded. Ignores (BLKLEN)
+        call    READ_DATA
+        jp      c,DEV_RW_ERR
+        call    IDE_OFF
+        xor     a               ; A=0: No error.
+        ret
 
-	;---
-	;---  ATA WRITE
-	;---
+        ;---
+        ;---  ATA WRITE
+        ;---
 DEV_ATA_WR:
-	ld	a,ATACMD.PWRSECTRT	; PIO write sector with retry
-	call	PIO_CMD
-	jp	c,DEV_RW_ERR
-	ld	iyl,b		; iyl=number of blocks
+        ld      a,ATACMD.PWRSECTRT      ; PIO write sector with retry
+        call    PIO_CMD
+        jp      c,DEV_RW_ERR
+        ld      iyl,b           ; iyl=number of blocks
 
-	ld	bc,512		; block size  ***Hardcoded. Ignores (BLKLEN)
-	call	WRITE_DATA
-	jp	c,DEV_RW_ERR
-	call	IDE_OFF
-	xor	a		; A=0: No error.
-	ret
+        ld      bc,512          ; block size  ***Hardcoded. Ignores (BLKLEN)
+        call    WRITE_DATA
+        jp      c,DEV_RW_ERR
+        call    IDE_OFF
+        xor     a               ; A=0: No error.
+        ret
 
 
 DEV_ATAPI_RW:
-	ld	a,c			;Get devnum in IDE format
-	call	SELDEV
+        ld      a,c                     ;Get devnum in IDE format
+        call    SELDEV
 
-	; Fill the READ10/WRITE10 packet structure
-	push	de
-	ld	e,(ix+DEVINFO.pBASEWRK)		; hl=pointer to WorkArea
-	ld	d,(ix+DEVINFO.pBASEWRK+1)
-	ld iyl,e
- 	ld iyh,d				; iy=WRKAREA pointer
-	pop	de
+        ; Fill the READ10/WRITE10 packet structure
+        push    de
+        ld      e,(ix+WRKAREA.pBASEWRK)         ; hl=pointer to WorkArea
+        ld      d,(ix+WRKAREA.pBASEWRK+1)
+        ld iyl,e
+        ld iyh,d                                ; iy=WRKAREA pointer
+        pop     de
 
-	; Set the block size
-	ld	a,(ix+DEVINFO.SECTSIZE)
-	ld	(iy+WRKAREA.BLKLEN),a	
-	ld	a,(ix+DEVINFO.SECTSIZE+1)
-	ld	(iy+WRKAREA.BLKLEN+1),a
+        ; Set the block size
+        ld      a,(ix+WRKAREA.SECTSIZE)
+        ld      (iy+WRKAREA.BLKLEN),a   
+        ld      a,(ix+WRKAREA.SECTSIZE+1)
+        ld      (iy+WRKAREA.BLKLEN+1),a
 
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT),0
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT+1),b
-	ld	a,(de)
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LBA+3),a
-	inc	de
-	ld	a,(de)
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LBA+2),a
-	inc	de
-	ld	a,(de)
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LBA+1),a
-	inc	de
-	ld	a,(de)
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LBA+0),a
-	; Set the fields that we don't need to 0
-	xor	a
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.OPTIONS),a
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.GROUP),a
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.CONTROL),a
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW12.GROUP),a
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW12.CONTROL),a
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT),0
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT+1),b
+        ld      a,(de)
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LBA+3),a
+        inc     de
+        ld      a,(de)
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LBA+2),a
+        inc     de
+        ld      a,(de)
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LBA+1),a
+        inc     de
+        ld      a,(de)
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LBA+0),a
+        ; Set the fields that we don't need to 0
+        xor     a
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.OPTIONS),a
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.GROUP),a
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.CONTROL),a
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW12.GROUP),a
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW12.CONTROL),a
 
-	ld	de,512			;Set the buffer size to the 512 bytes
-	ld	(IDE_LBAMID),de
+        ld      de,512                  ;Set the buffer size to the 512 bytes
+        ld      (IDE_LBAMID),de
 
-	;
-	pop	af		; a=device number in Nextor format, f=r/w flag
-	jp	c,DEV_ATAPI_WR
-	;
+        ;
+        pop     af              ; a=device number in Nextor format, f=r/w flag
+        jp      c,DEV_ATAPI_WR
+        ;
 
 DEV_ATAPI_RD:
-	ld	a,PACKETCMD.READ12
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.OPCODE),a
-	ld	a,ATAPICMD.PACKET	; PIO send PACKET command 
-	call	PIO_CMD
-	jp	c,DEV_RW_ERR
-	push	bc
-	push 	hl
-	push	iy
-	ld	iyl,1			; 1 block
-	ld	hl,WRKAREA.PCTBUFF
-	ld	bc,PCTRW10._SIZE		; block size=10 bytes
-	call	WRITE_DATA		; Send the packet to the device
+        ld      a,PACKETCMD.READ12
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.OPCODE),a
+        ld      a,ATAPICMD.PACKET       ; PIO send PACKET command 
+        call    PIO_CMD
+        jp      c,DEV_RW_ERR
+        push    bc
+        push    hl
+        push    iy
+        ld      iyl,1                   ; 1 block
+        ld      hl,WRKAREA.PCTBUFF
+        ld      bc,PCTRW10._SIZE                ; block size=10 bytes
+        call    WRITE_DATA              ; Send the packet to the device
 
-	ifdef BAD_POPS
+        ifdef BAD_POPS
 
-	pop bc
-	pop hl
-	pop iy
+        pop bc
+        pop hl
+        pop iy
 
-	else
+        else
 
-	pop	iy
-	pop hl
-	pop bc
+        pop     iy
+        pop hl
+        pop bc
 
-	endif
+        endif
 
-	jp	c,DEV_RW_ERR
+        jp      c,DEV_RW_ERR
 
-.init1:	; Set the sector size and number of blocks
-	; sizes bigger than 512 must be a multiple of 512
-	ld	a,(ix+DEVINFO.SECTSIZE+1)
-	srl	a		; SECTSIZE=SECTSIZE/512 (the IDE buffer can
-				; transfer only 512 bytes per time)
-	ld	de,512		; block size=512
-	jr	nz,.init2	; Skip if the boundary check is ok
-	inc	a		; Keep the block count to at least 1
-	ld	e,(ix+DEVINFO.SECTSIZE)
-	ld	d,(ix+DEVINFO.SECTSIZE+1)
+.init1: ; Set the sector size and number of blocks
+        ; sizes bigger than 512 must be a multiple of 512
+        ld      a,(ix+WRKAREA.SECTSIZE+1)
+        srl     a               ; SECTSIZE=SECTSIZE/512 (the IDE buffer can
+                                ; transfer only 512 bytes per time)
+        ld      de,512          ; block size=512
+        jr      nz,.init2       ; Skip if the boundary check is ok
+        inc     a               ; Keep the block count to at least 1
+        ld      e,(ix+WRKAREA.SECTSIZE)
+        ld      d,(ix+WRKAREA.SECTSIZE+1)
 
-.init2:	
-	ld	c,a		; c=number of 512-byte blocks per sector
+.init2: 
+        ld      c,a             ; c=number of 512-byte blocks per sector
 
-	push	bc
- 	ld b,d
-	ld c,e		; bc=block size
-	call	SETLDIRHLPR	; hl'=Pointer to LDIR helper in RAM
-	pop	bc
-	ex	de,hl		; de=destination address
+        push    bc
+        ld b,d
+        ld c,e          ; bc=block size
+        call    SETLDIRHLPR     ; hl'=Pointer to LDIR helper in RAM
+        pop     bc
+        ex      de,hl           ; de=destination address
 .loopsector:
-	push	bc
-	ld	iyl,c		; get the number of blocks per sector
+        push    bc
+        ld      iyl,c           ; get the number of blocks per sector
 .loopblock:
-	call	WAIT_DRQ
-	jr	c,.rderr
-	ld	hl,IDE_DATA
-	call	RUN_HLPR
-	dec	iyl
-	jr	nz,.loopblock
-	pop	bc
-	djnz	.loopsector
+        call    WAIT_DRQ
+        jr      c,.rderr
+        ld      hl,IDE_DATA
+        call    RUN_HLPR
+        dec     iyl
+        jr      nz,.loopblock
+        pop     bc
+        djnz    .loopsector
 
-	call	IDE_OFF
-	xor	a
-	ret
+        call    IDE_OFF
+        xor     a
+        ret
 
-.rderr:	; Allows the read loop to run faster with a jr
-	jp	DEV_RW_ERR
+.rderr: ; Allows the read loop to run faster with a jr
+        jp      DEV_RW_ERR
 
 
 DEV_ATAPI_WR:
-	ld	a,PACKETCMD.WRITE10
-	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.OPCODE),a
-	ld	a,ATAPICMD.PACKET	; PIO send PACKET command 
-	call	PIO_CMD
-	jp	c,DEV_RW_ERR
-	push	bc
-	push	hl
-	push	iy
-	ld	iyl,1			; 1 block
-	ld	hl,WRKAREA.PCTBUFF
-	ld	bc,PCTRW10._SIZE		; block size=10 bytes
-	call	WRITE_DATA		; Send the packet to the device
+        ld      a,PACKETCMD.WRITE10
+        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.OPCODE),a
+        ld      a,ATAPICMD.PACKET       ; PIO send PACKET command 
+        call    PIO_CMD
+        jp      c,DEV_RW_ERR
+        push    bc
+        push    hl
+        push    iy
+        ld      iyl,1                   ; 1 block
+        ld      hl,WRKAREA.PCTBUFF
+        ld      bc,PCTRW10._SIZE                ; block size=10 bytes
+        call    WRITE_DATA              ; Send the packet to the device
 
-	ifdef BAD_POPS
+        ifdef BAD_POPS
 
-	pop bc
-	pop hl
-	pop iy
+        pop bc
+        pop hl
+        pop iy
 
-	else
+        else
 
-	pop	iy
-	pop hl
-	pop bc
+        pop     iy
+        pop hl
+        pop bc
 
-	endif
+        endif
 
-	jp	c,DEV_RW_ERR
+        jp      c,DEV_RW_ERR
 
-.init1:	; Set the sector size and number of blocks
-	; sizes bigger than 512 must be a multiple of 512
-	ld	a,(ix+DEVINFO.SECTSIZE+1)
-	srl	a		; SECTSIZE=SECTSIZE/512 (the IDE buffer can
-				; transfer only 512 bytes per time)
-	ld	de,512		; block size=512
-	jr	nz,.init2	; Skip if the boundary check is ok
-	inc	a		; Keep the block count to at least 1
-	ld	e,(ix+DEVINFO.SECTSIZE)
-	ld	d,(ix+DEVINFO.SECTSIZE+1)
+.init1: ; Set the sector size and number of blocks
+        ; sizes bigger than 512 must be a multiple of 512
+        ld      a,(ix+WRKAREA.SECTSIZE+1)
+        srl     a               ; SECTSIZE=SECTSIZE/512 (the IDE buffer can
+                                ; transfer only 512 bytes per time)
+        ld      de,512          ; block size=512
+        jr      nz,.init2       ; Skip if the boundary check is ok
+        inc     a               ; Keep the block count to at least 1
+        ld      e,(ix+WRKAREA.SECTSIZE)
+        ld      d,(ix+WRKAREA.SECTSIZE+1)
 
-.init2:	
-	ld	c,a		; c=number of 512-byte blocks per sector
+.init2: 
+        ld      c,a             ; c=number of 512-byte blocks per sector
 
-	push	bc
- 	ld b,d
- 	ld c,e		; bc=block size
-	call	SETLDIRHLPR	; hl'=Pointer to LDIR helper in RAM
-	pop	bc
+        push    bc
+        ld b,d
+        ld c,e          ; bc=block size
+        call    SETLDIRHLPR     ; hl'=Pointer to LDIR helper in RAM
+        pop     bc
 .loopsector:
-	push	bc
-	ld	iyl,c		; get the number of blocks per sector
+        push    bc
+        ld      iyl,c           ; get the number of blocks per sector
 .loopblock:
-	call	WAIT_DRQ
-	jr	c,.rderr
-	ld	de,IDE_DATA
-	call	RUN_HLPR
-	call	CHK_RW_FAULT
-	jr	c,.rderr
-	dec	iyl
-	jp	nz,.loopblock
-	pop	bc
-	djnz	.loopsector
+        call    WAIT_DRQ
+        jr      c,.rderr
+        ld      de,IDE_DATA
+        call    RUN_HLPR
+        call    CHK_RW_FAULT
+        jr      c,.rderr
+        dec     iyl
+        jp      nz,.loopblock
+        pop     bc
+        djnz    .loopsector
 
-	call	IDE_OFF
-	xor	a
-	ret
+        call    IDE_OFF
+        xor     a
+        ret
 
-.rderr:	; Allows the read loop to run faster with a jr
-;	jp	DEV_RW_ERR
+.rderr: ; Allows the read loop to run faster with a jr
+;       jp      DEV_RW_ERR
 
 
-	;---
-	;---  ERROR ON READ/WRITE
-	;---
+        ;---
+        ;---  ERROR ON READ/WRITE
+        ;---
 
 DEV_RW_ERR:
-	ld	a,(IDE_ERROR)
-	ld	b,a		; b=IDE_ERROR
-	call	IDE_OFF
-	bit	NM,b		;Not ready
-	jr	nz,DEV_R_ERR1
-	ld	a,_NRDY
-	ld	b,0
-	ret
+        ld      a,(IDE_ERROR)
+        ld      b,a             ; b=IDE_ERROR
+        call    IDE_OFF
+        bit     NM,b            ;Not ready
+        jr      nz,DEV_R_ERR1
+        ld      a,_NRDY
+        ld      b,0
+        ret
 DEV_R_ERR1:
-	bit	IDNF,b		;Sector not found
-	jr	nz,DEV_R_ERR2
-	ld	a,_RNF
-	ld	b,0
-	ret
+        bit     IDNF,b          ;Sector not found
+        jr      nz,DEV_R_ERR2
+        ld      a,_RNF
+        ld      b,0
+        ret
 DEV_R_ERR2:
-	bit	WP,b		;Write protected
-	jr	nz,DEV_R_ERR3
-	ld	a,_WPROT
-	ld	b,0
-	ret
+        bit     WP,b            ;Write protected
+        jr      nz,DEV_R_ERR3
+        ld      a,_WPROT
+        ld      b,0
+        ret
 DEV_R_ERR3:
-	ld	a,_DISK		;Other error
-	ld	b,0
-	ret
+        ld      a,_DISK         ;Other error
+        ld      b,0
+        ret
 
-	;--- Termination points
+        ;--- Termination points
 
 DEV_RW_NOSEC:
-	call	IDE_OFF
-	pop	af
-	ld	a,_RNF
-	ld	b,0
-	ret
+        call    IDE_OFF
+        pop     af
+        ld      a,_RNF
+        ld      b,0
+        ret
 
 DEV_RW_NODEV:
-	call	IDE_OFF
-	pop	af
-	ld	a,_IDEVL
-	ld	b,0
-	ret
+        call    IDE_OFF
+        pop     af
+        ld      a,_IDEVL
+        ld      b,0
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -1392,112 +1624,109 @@ DEV_RW_NODEV:
 ; provided, not the leftmost.
 
 DEV_INFO:
-	;Check device index boundaries
-	or	a
-	jp	z,.error1
-	cp	3
-	jp	nc,.error1
+        ;Check device index boundaries
+        or      a
+        jp      z,.error1
+        cp      3
+        jp      nc,.error1
 
-	call	MY_GWORK
+        call    MY_GWORK
 
-	ld	c,a
-	ld	a,b
-	or	a
-	jr	nz,.strings
+        ld      c,a
+        ld      a,b
+        or      a
+        jr      nz,.strings
 
-	;--- Obtain basic information
+        ;--- Obtain basic information
 
-	ld	a,(ix+DEVINFO.t321D)	; Get current device type
-	and	3			;Device available? 
-	jr	z,.error1
+        ld      a,(ix+WRKAREA.t321D)    ; Get current device type
+        and     3                       ;Device available? 
+        jr      z,.error1
 
-	ld	(hl),1			;One single LUN
-	inc	hl
-	ld	(hl),0			;Always zero
-	xor	a
-	ret
+        ld      (hl),1                  ;One single LUN
+        inc     hl
+        ld      (hl),0                  ;Always zero
+        xor     a
+        ret
 
-	;--- Obtain string information
+        ;--- Obtain string information
+        ; TODO: Different name for emulated disk
+        ; TODO: Check if disk emulation is enabled for 2nd device
 .strings:
-	call	IDE_ON
+        call    IDE_ON
 
-	ld	a,c
-	dec	a
-	jr	z,.swcase
-	ld	a,M_DEV
+        xor     a
+        call    SELDEV
 
-.swcase:
-	call	SELDEV
+        ld      a,b
+        dec     a                       ; A=1? (Manufacturer name)
+        jr      z,.error2               ; Yes, quit. IDE doesn't have it.
 
-	ld	a,b
-	dec	a			; A=1? (Manufacturer name)
-	jr	z,.error2		; Yes, quit. IDE doesn't have it.
+        dec     a                       ; A=2? (Device name)
+        jr      z,.devname
 
-	dec	a			; A=2? (Device name)
-	jr	z,.devname
+        dec     a                       ; A=3? (Serial number)
+        jr      nz,.error2              ; No, quit with error
+        jr      .devserial              ; Skip to serial number routine
 
-	dec	a			; A=3? (Serial number)
-	jr	nz,.error2		; No, quit with error
-	jr	.devserial		; Skip to serial number routine
-
-	;--- Device name
+        ;--- Device name
 .devname:
-;	push	hl
-	call	DEV_STRING_CLR
-	ld	bc,#1B14		; Device name word on IDENTIFY
-	call	DEV_STRING_DIGEST
-;	pop	hl
-	jr	c,.error1
-;	ld	bc,#1708
-;	ld	de,21
-;	add	hl,de
-;	call	DEV_STRING_DIGEST	; Get the device version
-;	jr	c,.error1
+;       push    hl
+        call    DEV_STRING_CLR
+        ld      bc,#1B14                ; Device name word on IDENTIFY
+        call    DEV_STRING_DIGEST
+;       pop     hl
+        jr      c,.error1
+;       ld      bc,#1708
+;       ld      de,21
+;       add     hl,de
+;       call    DEV_STRING_DIGEST       ; Get the device version
+;       jr      c,.error1
 
-	call	IDE_OFF
-	xor	a
-	ret
+        call    IDE_OFF
+        xor     a
+        ret
 
 
-	;--- Serial number
+        ;--- Serial number
 .devserial:
-	call	DEV_STRING_CLR
-	ld	bc,#0A0A
-	ld	de,44
-	add	hl,de			;Since the string is 20 chars long
-	call	DEV_STRING_DIGEST
-	jr	c,.error1
-	call	IDE_OFF
-	xor	a
-	ret
+        call    DEV_STRING_CLR
+        ld      bc,#0A0A
+        ld      de,44
+        add     hl,de                   ;Since the string is 20 chars long
+        call    DEV_STRING_DIGEST
+        jr      c,.error1
+        call    IDE_OFF
+        xor     a
+        ret
 
-	
-	;--- Termination with error
+        
+        ;--- Termination with error
 .error1:
-	call	IDE_OFF
-	ld	a,1
-	scf
-	ret
+        call    IDE_OFF
+        ld      a,1
+        scf
+        ret
 
 .error2:
-	call	IDE_OFF
-	ld	a,2
-	ret
+        call    IDE_OFF
+        ld      a,2
+        ret
 
 
 ;--- Clear the destination buffer
 ; Input   : HL = 64 bytes string buffer
 ; Modifies: AF, BC 
 DEV_STRING_CLR:
-	push	hl
-	ld	a,' '
-	ld	b,64
+        push    hl
+        ld      a,' '
+        ld      b,64
 .loopclr:
-	ld	(hl),a
-	inc	hl
-	djnz	.loopclr
-	pop	hl
-	ret
+        ld      (hl),a
+        inc     hl
+        djnz    .loopclr
+        pop     hl
+        ret
 
 
 
@@ -1509,100 +1738,100 @@ DEV_STRING_CLR:
 ;          HL = Destination address for the string
 ;Modifies: AF, BC, DE, HL
 DEV_STRING_GET:
-	push	hl
-	; Calculate the number of bytes that will remain
-	ld	a,c
-	srl	a			; a=number of words in the string
-	add	b			; a=number of words to be consumed 
-	ld	e,a
-	ld	d,0
-	ld	hl,256
-	or	a
-	sbc	hl,de
-	ld	h,l			; h=number of remaining words
-	ex	(sp),hl			; (sp)=number of remaining words
+        push    hl
+        ; Calculate the number of bytes that will remain
+        ld      a,c
+        srl     a                       ; a=number of words in the string
+        add     b                       ; a=number of words to be consumed 
+        ld      e,a
+        ld      d,0
+        ld      hl,256
+        or      a
+        sbc     hl,de
+        ld      h,l                     ; h=number of remaining words
+        ex      (sp),hl                 ; (sp)=number of remaining words
 
-	ld	a,(ix+DEVINFO.t321D)
-	and	3
-	cp	3			; ATAPI?
-	ld	a,ATACMD.IDENTIFY	; Send IDENTIFY commad
-	jr	c,.identify
-	ld	a,ATAPICMD.IDENTPACKET	;Send IDENTIFY PACKET commad
+        ld      a,(ix+WRKAREA.t321D)
+        and     3
+        cp      3                       ; ATAPI?
+        ld      a,ATACMD.IDENTIFY       ; Send IDENTIFY commad
+        jr      c,.identify
+        ld      a,ATAPICMD.IDENTPACKET  ;Send IDENTIFY PACKET commad
 .identify:
-	call	PIO_CMD
-	jr	c,.errorpop
+        call    PIO_CMD
+        jr      c,.errorpop
 
-	ex	de,hl			; de=string buffer
+        ex      de,hl                   ; de=string buffer
 .skip:
-	ld	hl,(IDE_DATA)	;Skip device data until the desired string
-	djnz	.skip
+        ld      hl,(IDE_DATA)   ;Skip device data until the desired string
+        djnz    .skip
 
-	; Transfer all bytes to the buffer. String processing must be done
-	; later because some devices don't like when the transfer is too slow
-;	ld	b,0
-	ld	hl,IDE_DATA
-	ldir
+        ; Transfer all bytes to the buffer. String processing must be done
+        ; later because some devices don't like when the transfer is too slow
+;       ld      b,0
+        ld      hl,IDE_DATA
+        ldir
 
-	pop	bc			; b=number of remaining words
-.flushloop:	; Flush the rest of the data
-	ld	hl,(IDE_DATA)
-	djnz	.flushloop
+        pop     bc                      ; b=number of remaining words
+.flushloop:     ; Flush the rest of the data
+        ld      hl,(IDE_DATA)
+        djnz    .flushloop
 
-	or	a			; Clear Cy
-	ret
+        or      a                       ; Clear Cy
+        ret
 
 .errorpop:
-	pop	de			; Discard stack data
-	ret
+        pop     de                      ; Discard stack data
+        ret
 
 
 ; Digest a string from the device and place it on the buffer
 ; Input   : IY=Pointer to the text buffer
-;   	     B=Size of the string
+;            B=Size of the string
 ; Modifies: AF, BC
 DEV_STRING_DIGEST:
-	push	bc
-	push	hl
-	call	DEV_STRING_GET
+        push    bc
+        push    hl
+        call    DEV_STRING_GET
 
-	ifdef BAD_POPS
+        ifdef BAD_POPS
 
-	pop bc
-	pop iy
+        pop bc
+        pop iy
 
-	else
+        else
 
-	pop	iy
-	pop	bc
+        pop     iy
+        pop     bc
 
-	endif
+        endif
 
-	ret	c
-	ld	b,c
+        ret     c
+        ld      b,c
 
-	; --- Digest an ATA string into a text string
+        ; --- Digest an ATA string into a text string
 .stringloop:
-	ld	a,(iy+1)
-	ld	c,(iy)
-	call	.validatechar	
-	ld	(iy),a
-	ld	a,c
-	call	.validatechar	
-	ld	(iy+1),a
-	inc	iy
-	inc	iy
-	djnz	.stringloop
-	or	a			; Clear Cy
-	ret
+        ld      a,(iy+1)
+        ld      c,(iy)
+        call    .validatechar   
+        ld      (iy),a
+        ld      a,c
+        call    .validatechar   
+        ld      (iy+1),a
+        inc     iy
+        inc     iy
+        djnz    .stringloop
+        or      a                       ; Clear Cy
+        ret
 
 .validatechar:
-	cp	32
-	jr	c,.invalidchar
-	cp	127
-	ret	c
+        cp      32
+        jr      c,.invalidchar
+        cp      127
+        ret     c
 .invalidchar:
-	ld	a,'_'
-	ret
+        ld      a,'_'
+        ret
 
 
 
@@ -1634,30 +1863,38 @@ DEV_STRING_DIGEST:
 ; Non removable logical units may return values 0 and 1.
 
 DEV_STATUS:
-	set	0,b	;So that CHECK_DEV_LUN admits B=0
+if DEBUG
+        push    af
+        ld      a,'$'
+        call    PRTCHAR
+        pop     af
+endif
+        set     0,b     ;So that CHECK_DEV_LUN admits B=0
 
-	call	CHECK_DEV_LUN
-	ld	e,a
-	ld	a,0
-	ret	c
+        call    CHECK_DEV_LUN
+        ld      e,a
+        ld      a,0
+        ret     c
 
-	ld	a,1	;Never changed
-	ret
+        ; TODO: Change detect for emulated disk
 
-	;ld	a,1
-	;ret
+        ld      a,1     ;Never changed
+        ret
 
-	ld	a,e
-	cp	2
-	ld	a,1
-	ret	nz
+        ;ld     a,1
+        ;ret
 
-	ld	a,e
-	dec	a	;FOR TESTING:
-	ld	a,2	;Return "Unchanged" for device 1, "Unknown" for device 2
-	ret	z
-	ld	a,3
-	ret
+        ld      a,e
+        cp      2
+        ld      a,1
+        ret     nz
+
+        ld      a,e
+        dec     a       ;FOR TESTING:
+        ld      a,2     ;Return "Unchanged" for device 1, "Unknown" for device 2
+        ret     z
+        ld      a,3
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -1692,226 +1929,283 @@ DEV_STATUS:
 ;+11 (1): Number of sectors per track (0, if not a hard disk)
 
 LUN_INFO:
-	call	CHECK_DEV_LUN
-	jp	c,LUN_INFO_ERROR
+        call    MY_GWORK                ; ix=workarea for this device
+        cp      2                       ; Check device index
+        jr      nz,LUN_INFO_NOEMU
+        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.ENABLE)   ; Check if disk emulator enabled
+        or      a
+        jp      z,LUN_INFO_ERROR
+        ld      a,b     ; Check LUN number
+        cp      1
+        jp      nz,LUN_INFO_ERROR
 
-	call	MY_GWORK		; ix=workarea for this device
+if DEBUG
+        ld      a,'E'
+        call    PRTCHAR
+endif
+        push    hl
+        pop     iy
 
-	ld	b,a
-	call	IDE_ON
-	ld	a,b
+        ;========== Device properties ==========
 
-	push	hl
-	pop	iy
-	dec	a
-	jr	z,LUN_INFO2
-	ld	a,M_DEV
+        ;---Set the device type
+        ld      (iy),0          ;set device type to 'block type'
+        ld      (iy+1),0        ;sector size (512)
+        ld      (iy+2),2
+        ld      hl,1440
+        ld      (iy+3),l        ;number of sectors
+        ld      (iy+4),h
+        ld      (iy+5),0
+        ld      (iy+6),0
+        ld      (iy+7),1 ;101b     ;Removable, Floppy
+        ld      (iy+8),80       ;Cylinders
+        ld      (iy+9),0
+        ld      (iy+10),2       ;Heads
+        ld      (iy+11),9       ;Sectors/track
+        xor     a
+        ret
+LUN_INFO_NOEMU:
+
+if DEBUG
+        push    af
+        ld      a,'N'
+        call    PRTCHAR
+        pop     af
+endif
+
+        call    CHECK_DEV_LUN
+        jp      c,LUN_INFO_ERROR
+
+        call    MY_GWORK                ; ix=workarea for this device
+
+        ld      b,a
+        call    IDE_ON
+        ld      a,b
+
+        push    hl
+        pop     iy
+        dec     a
+        jr      z,LUN_INFO2
+        ld      a,M_DEV
 LUN_INFO2:
 
-	ld	e,a
-	call	WAIT_DRDY
-	jp	c,LUN_INFO_ERROR
-	ld	a,e
+        ld      e,a
+        call    WAIT_DRDY
+        jp      c,LUN_INFO_ERROR
+        ld      a,e
 
-	call	SELDEV
+        call    SELDEV
 
-	ld	a,(ix+DEVINFO.t321D)
-	and	3
-	cp	3			; ATAPI?
-	jp	z,LUN_NFO_ATAPI		; Yes, skip
+        ld      a,(ix+WRKAREA.t321D)
+        and     3
+        cp      3                       ; ATAPI?
+        jp      z,LUN_NFO_ATAPI         ; Yes, skip
 
-	ld	a,ATACMD.IDENTIFY	; Send IDENTIFY commad
-	call	PIO_CMD
-	jp	c,LUN_INFO_ERROR
+        ld      a,ATACMD.IDENTIFY       ; Send IDENTIFY commad
+        call    PIO_CMD
+        jp      c,LUN_INFO_ERROR
 
-	;========== Device properties ==========
+        ;========== Device properties ==========
 
-	;---Set the device type
-	ld	(iy),0		;set device type
-	ld	(iy+7),0	;Not removable, nor floppy
+        ;---Set the device type
+        ld      (iy),0          ;set device type
+        ld      (iy+7),0        ;Not removable, nor floppy
 
-	ld	hl,(IDE_DATA)	;Skip word 0
-	;Set cylinders, heads, and sectors/track
-	ld	hl,(IDE_DATA)
-	ld	(iy+8),l	;Word 1: Cylinders
-	ld	(iy+9),h
-	ld	hl,(IDE_DATA)	;Skip word 2
-	ld	hl,(IDE_DATA)
-	ld	(iy+10),l	;Word 3: Heads
-	ld	hl,(IDE_DATA)
-	ld	hl,(IDE_DATA)	;Skip words 4,5
-	ld	hl,(IDE_DATA)
-	ld	(iy+11),l	;Word 6: Sectors/track
+        ld      hl,(IDE_DATA)   ;Skip word 0
+        ;Set cylinders, heads, and sectors/track
+        ld      hl,(IDE_DATA)
+        ld      (iy+8),l        ;Word 1: Cylinders
+        ld      (iy+9),h
+        ld      hl,(IDE_DATA)   ;Skip word 2
+        ld      hl,(IDE_DATA)
+        ld      (iy+10),l       ;Word 3: Heads
+        ld      hl,(IDE_DATA)
+        ld      hl,(IDE_DATA)   ;Skip words 4,5
+        ld      hl,(IDE_DATA)
+        ld      (iy+11),l       ;Word 6: Sectors/track
 
-	;Set maximum sector number
-	ld	b,60-7	;Skip until word 60
+        ;Set maximum sector number
+        ld      b,60-7  ;Skip until word 60
 .skip1:
-	ld	de,(IDE_DATA)
-	djnz	.skip1
+        ld      de,(IDE_DATA)
+        djnz    .skip1
 
-	ld	de,(IDE_DATA)	;DE = Low word
-	ld	hl,(IDE_DATA)	;HL = High word
+        ld      de,(IDE_DATA)   ;DE = Low word
+        ld      hl,(IDE_DATA)   ;HL = High word
 
-	ld	(iy+3),e
-	ld	(iy+4),d
-	ld	(iy+5),l
-	ld	(iy+6),h
+        ld      (iy+3),e
+        ld      (iy+4),d
+        ld      (iy+5),l
+        ld      (iy+6),h
 
-	;Set sector size
-	ld	b,117-62	;Skip until word 117
+        ; Calculate start sector for disk emulation
+        ld      bc,1440
+        ex      de,hl
+        xor     a
+        sbc     hl,bc
+        ex      de,hl
+        ld      bc,0
+        sbc     hl,bc
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+0),e
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+1),d
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+2),l
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+3),h
+
+        ;Set sector size
+        ld      b,117-62        ;Skip until word 117
 .skip2:
-	ld	de,(IDE_DATA)
-	djnz	.skip2
+        ld      de,(IDE_DATA)
+        djnz    .skip2
 
-	ld	de,(IDE_DATA)	;DE = Low word
-	ld	hl,(IDE_DATA)	;HL = High word
+        ld      de,(IDE_DATA)   ;DE = Low word
+        ld      hl,(IDE_DATA)   ;HL = High word
 
-	ld	a,h	;If high word not zero, set zero (info not available)
-	or	l
-	ld	hl,0
-	ex	de,hl
-	jr	nz,.info_ssize
+        ld      a,h     ;If high word not zero, set zero (info not available)
+        or      l
+        ld      hl,0
+        ex      de,hl
+        jr      nz,.info_ssize
 
-	ex	de,hl
-	ld	a,d
-	or	e
-	jr	nz,.info_ssize
-	ld	de,512	;If low word is zero, assume 512 bytes
+        ex      de,hl
+        ld      a,d
+        or      e
+        jr      nz,.info_ssize
+        ld      de,512  ;If low word is zero, assume 512 bytes
 .info_ssize:
-	ld	(iy+1),e
-	ld	(iy+2),d
-	ld	(ix+DEVINFO.SECTSIZE),e
-	ld	(ix+DEVINFO.SECTSIZE+1),d
+        ld      (iy+1),e
+        ld      (iy+2),d
+        ld      (ix+WRKAREA.SECTSIZE),e
+        ld      (ix+WRKAREA.SECTSIZE+1),d
 
-	;Flush the rest of the data
-	ld	b,256-118
+        ;Flush the rest of the data
+        ld      b,256-118
 .skip3:
-	ld	de,(IDE_DATA)
-	djnz	.skip3
+        ld      de,(IDE_DATA)
+        djnz    .skip3
 
-	; Finish
-	call	IDE_OFF
-	xor	a
-	ret
+        ; Finish
+        call    IDE_OFF
+        xor     a
+        ret
 
 LUN_NFO_ATAPI:
-	ld	a,ATAPICMD.IDENTPACKET	;Send IDENTIFY PACKET commad
-	call	PIO_CMD
-	jp	c,LUN_INFO_ERROR
+        ld      a,ATAPICMD.IDENTPACKET  ;Send IDENTIFY PACKET commad
+        call    PIO_CMD
+        jp      c,LUN_INFO_ERROR
 
-	ld	hl,(IDE_DATA)	;Read word 0
-	; Get the ATAPI device type
-	xor	a
-	sla	l		;Get the removable-device flag
-	adc	a,a		;Inject it in A
-	ld	(iy+7),a
-	ld	a,h
-	and	#1F		;Crop command packet set
-	ld	d,a		;d=0: block device
-	jr	z,.setdevtype	;Direct-access device
-	dec	d		;d=255: other
-	cp	5		;CD-ROM?
-	jr	nz,.setdevtype	;Yes, skip
-	ld	d,1		;d=1: CD-ROM
-	ld	a,2		;read-only media
-	or	(iy+7)
+        ld      hl,(IDE_DATA)   ;Read word 0
+        ; Get the ATAPI device type
+        xor     a
+        sla     l               ;Get the removable-device flag
+        adc     a,a             ;Inject it in A
+        ld      (iy+7),a
+        ld      a,h
+        and     #1F             ;Crop command packet set
+        ld      d,a             ;d=0: block device
+        jr      z,.setdevtype   ;Direct-access device
+        dec     d               ;d=255: other
+        cp      5               ;CD-ROM?
+        jr      nz,.setdevtype  ;Yes, skip
+        ld      d,1             ;d=1: CD-ROM
+        ld      a,2             ;read-only media
+        or      (iy+7)
 .setdevtype:
-	ld	(iy+7),a
-	ld	(iy),d		;set device type
+        ld      (iy+7),a
+        ld      (iy),d          ;set device type
 
-	ld	b,255		;Flush the rest of the data
+        ld      b,255           ;Flush the rest of the data
 .skip1:
-	ld	hl,(IDE_DATA)
-	djnz	.skip1
+        ld      hl,(IDE_DATA)
+        djnz    .skip1
 
 
-	ld	hl,512			;Set the buffer size to 512 bytes
-	ld	(IDE_LBAMID),hl	
-	ld	l,(ix+DEVINFO.pBASEWRK)		; hl=WorkArea
-	ld	h,(ix+DEVINFO.pBASEWRK+1)
-	ld	de,WRKAREA.PCTBUFF
-	add	hl,de
-	push	hl
-	ld	(hl),PACKETCMD.RDCAPACITY
-	inc	hl
-	ld	b,11
-.zloop:	ld	(hl),0		; Clear the rest of the package
-	inc	hl
-	djnz	.zloop
+        ld      hl,512                  ;Set the buffer size to 512 bytes
+        ld      (IDE_LBAMID),hl 
+        ld      l,(ix+WRKAREA.pBASEWRK)         ; hl=WorkArea
+        ld      h,(ix+WRKAREA.pBASEWRK+1)
+        ld      de,WRKAREA.PCTBUFF
+        add     hl,de
+        push    hl
+        ld      (hl),PACKETCMD.RDCAPACITY
+        inc     hl
+        ld      b,11
+.zloop: ld      (hl),0          ; Clear the rest of the package
+        inc     hl
+        djnz    .zloop
 
-	ld	a,ATAPICMD.PACKET	; PIO send PACKET command 
-	call	PIO_CMD
-	jr	c,.errorpop
+        ld      a,ATAPICMD.PACKET       ; PIO send PACKET command 
+        call    PIO_CMD
+        jr      c,.errorpop
 
-	pop	hl
-	push	hl		; Source=PCTBUF
-	ld	bc,12		; 12 byte packet
-	push	iy
-	ld	iyl,1
-	call	WRITE_DATA	; Send the packet to the device
-	pop	iy
-	jr	nc,.rdmediapropr	; No error? Then read media proprieties
+        pop     hl
+        push    hl              ; Source=PCTBUF
+        ld      bc,12           ; 12 byte packet
+        push    iy
+        ld      iyl,1
+        call    WRITE_DATA      ; Send the packet to the device
+        pop     iy
+        jr      nc,.rdmediapropr        ; No error? Then read media proprieties
 
-	; Guess the sector size based on the device type
-	pop	de		; Discard the destination buffer address
-	ld	a,(iy)		; Get device type
-	ld	de,2048		; CD-ROM sector size
-	cp	1		; CD-ROM?
-	jr	z,.info_ssizeatapi
-	ld	de,512		; Otherwise assume a 512 byte sector
-	jr	.info_ssizeatapi
+        ; Guess the sector size based on the device type
+        pop     de              ; Discard the destination buffer address
+        ld      a,(iy)          ; Get device type
+        ld      de,2048         ; CD-ROM sector size
+        cp      1               ; CD-ROM?
+        jr      z,.info_ssizeatapi
+        ld      de,512          ; Otherwise assume a 512 byte sector
+        jr      .info_ssizeatapi
 
 .rdmediapropr:
-	pop	de		; Destination=PCTBUFF
-	ld	bc,8		; 8 byte response
-	push	iy
-	ld	iyl,1
-	call	READ_DATA
-	pop	iy
-	jr	c,LUN_INFO_ERROR
+        pop     de              ; Destination=PCTBUFF
+        ld      bc,8            ; 8 byte response
+        push    iy
+        ld      iyl,1
+        call    READ_DATA
+        pop     iy
+        jr      c,LUN_INFO_ERROR
 
-	ld	h,(ix+WRKAREA.PCTBUFF+0)	; Get the number of sectors
-	ld	l,(ix+WRKAREA.PCTBUFF+1)
-	ld	d,(ix+WRKAREA.PCTBUFF+2)
-	ld	e,(ix+WRKAREA.PCTBUFF+3)
-	ld	(iy+3),e			; Set the number of sectors
-	ld	(iy+4),d
-	ld	(iy+5),l
-	ld	(iy+6),h
+        ld      h,(ix+WRKAREA.PCTBUFF+0)        ; Get the number of sectors
+        ld      l,(ix+WRKAREA.PCTBUFF+1)
+        ld      d,(ix+WRKAREA.PCTBUFF+2)
+        ld      e,(ix+WRKAREA.PCTBUFF+3)
+        ld      (iy+3),e                        ; Set the number of sectors
+        ld      (iy+4),d
+        ld      (iy+5),l
+        ld      (iy+6),h
 
-	ld	h,(ix+WRKAREA.PCTBUFF+4)	; Get the sector size
-	ld	l,(ix+WRKAREA.PCTBUFF+5)
-	ld	d,(ix+WRKAREA.PCTBUFF+6)
-	ld	e,(ix+WRKAREA.PCTBUFF+7)
+        ld      h,(ix+WRKAREA.PCTBUFF+4)        ; Get the sector size
+        ld      l,(ix+WRKAREA.PCTBUFF+5)
+        ld      d,(ix+WRKAREA.PCTBUFF+6)
+        ld      e,(ix+WRKAREA.PCTBUFF+7)
 
-	ld	a,h	;If high word not zero, set zero (info not available)
-	or	l
-	ld	hl,0
-	ex	de,hl
-	jr	nz,.info_ssizeatapi
+        ld      a,h     ;If high word not zero, set zero (info not available)
+        or      l
+        ld      hl,0
+        ex      de,hl
+        jr      nz,.info_ssizeatapi
 
-	ex	de,hl
-	ld	a,d
-	or	e
-	jr	nz,.info_ssizeatapi
-	ld	de,512	;If low word is zero, assume 512 bytes
+        ex      de,hl
+        ld      a,d
+        or      e
+        jr      nz,.info_ssizeatapi
+        ld      de,512  ;If low word is zero, assume 512 bytes
 .info_ssizeatapi:
-	ld	(iy+1),e			; Set the sector size
-	ld	(iy+2),d
-	ld	(ix+DEVINFO.SECTSIZE),e
-	ld	(ix+DEVINFO.SECTSIZE+1),d
+        ld      (iy+1),e                        ; Set the sector size
+        ld      (iy+2),d
+        ld      (ix+WRKAREA.SECTSIZE),e
+        ld      (ix+WRKAREA.SECTSIZE+1),d
 
-	call	IDE_OFF
-	xor	a
-	ret
+        call    IDE_OFF
+        xor     a
+        ret
 
 .errorpop:
-	pop	hl
+        pop     hl
 
 LUN_INFO_ERROR:
-	call	IDE_OFF
-	ld	a,1
-	ret
+        call    IDE_OFF
+        ld      a,1
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -1951,8 +2245,8 @@ LUN_INFO_ERROR:
 ; FFh: 5.25" Double sided, 40 tracks per side, 8 sectors per track (320K)
 
 DEV_FORMAT:
-	ld	a,_IFORM
-	ret
+        ld      a,_IFORM
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -1979,8 +2273,8 @@ DEV_FORMAT:
 ; be allocated, and the first two bytes of the buffer must be 16, 0.
 
 DEV_CMD:
-	ld	a,2
-	ret
+        ld      a,2
+        ret
 
 ;=====
 ;=====  END of DEVICE-BASED specific routines
@@ -1991,6 +2285,19 @@ DEV_CMD:
 ; Subroutines
 ;=======================
 
+; ------------------------------------------------
+CLRCTRLSTOP:
+; Workaround for a bug on Nextor: Clear the CTRL+STOP
+; signal so it wont freeze when booting
+; https://github.com/Konamiman/Nextor/issues/1
+; ------------------------------------------------
+        ld      a,(INTFLG)
+        cp      3               ; Is CTRL+STOP still signaled?
+        ret     nz
+        xor     a
+        ld      (INTFLG),a      ; Clear CTRL+STOP otherwise Nextor will freeze
+        ret
+
 ;-----------------------------------------------------------------------------
 ;
 ; Enable or disable the IDE registers
@@ -1998,14 +2305,14 @@ DEV_CMD:
 ;Note that bank 7 (the driver code bank) must be kept switched
 
 IDE_ON:
-	ld	a,1+7*32
-	ld	(IDE_BANK),a
-	ret
+        ld      a,1+7*32
+        ld      (IDE_BANK),a
+        ret
 
 IDE_OFF:
-	ld	a,7*32
-	ld	(IDE_BANK),a
-	ret
+        ld      a,7*32
+        ld      (IDE_BANK),a
+        ret
 
 ;-----------------------------------------------------------------------------
 ; Wait the BSY flag to clear
@@ -2015,52 +2322,52 @@ IDE_OFF:
 ;
 ; Input:  Nothing
 ; Output: Cy=1 if timeout
-;	  A = Contents of the status register
+;         A = Contents of the status register
 
 WAIT_BSY:
-	out	(#E6),a			; Reset System-timer
-	in	a,(#E7)
-	or	a			; Is the timer present?
-	jr	z,.hasTimer
+        out     (#E6),a                 ; Reset System-timer
+        in      a,(#E7)
+        or      a                       ; Is the timer present?
+        jr      z,.hasTimer
 
-	push	bc
+        push    bc
 	ld	bc,#0090		; 256 fast retries, 48 slow retries
 .wait1:
-	ld	a,(IDE_STATUS)
-	and	M_BSY			; Still busy?
-	jr	z,.end			; No, skip
-	ex	(sp),hl
-	ex	(sp),hl
-	djnz	.wait1			; fast retry
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	dec	c
-	jr	nz,.wait1		; slow retry
-	scf				; Timeout: quit with Cy=on
-.end:	pop	bc
-	ret
+        ld      a,(IDE_STATUS)
+        and     M_BSY                   ; Still busy?
+        jr      z,.end                  ; No, skip
+        ex      (sp),hl
+        ex      (sp),hl
+        djnz    .wait1                  ; fast retry
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        dec     c
+        jr      nz,.wait1               ; slow retry
+        scf                             ; Timeout: quit with Cy=on
+.end:   pop     bc
+        ret
 
 .hasTimer:
-	push	bc
-	ld	b,1*4			; 1s
+        push    bc
+        ld      b,1*4                   ; 1s
 .twait1:
-	ld	a,(IDE_STATUS)
-	and	M_BSY
-	jr	z,.tend			; Yes, quit
-	in	a,(#E7)
-	cp	250			; 250ms
-	jr	c,.twait1
-	out	(#E6),a			; Reset the timer again
-	djnz	.twait1
-	scf				; Timeout: quit with Cy=on
+        ld      a,(IDE_STATUS)
+        and     M_BSY
+        jr      z,.tend                 ; Yes, quit
+        in      a,(#E7)
+        cp      250                     ; 250ms
+        jr      c,.twait1
+        out     (#E6),a                 ; Reset the timer again
+        djnz    .twait1
+        scf                             ; Timeout: quit with Cy=on
 .tend:
-	ld	a,(IDE_STATUS)		; Clear the INTRQ
-	pop	bc
-	ret
+        ld      a,(IDE_STATUS)          ; Clear the INTRQ
+        pop     bc
+        ret
 
 
 
@@ -2073,85 +2380,85 @@ WAIT_BSY:
 ;
 ; Input:  Nothing
 ; Output: Cy=1 if timeout after soft reset 
-;	  A = Contents of the status register
+;         A = Contents of the status register
 
 WAIT_DRDY:
-	out	(#E6),a			; Reset System-timer
-	in	a,(#E7)
-	or	a			; Is the timer present?
-	jr	z,.hasTimer
+        out     (#E6),a                 ; Reset System-timer
+        in      a,(#E7)
+        or      a                       ; Is the timer present?
+        jr      z,.hasTimer
 
-	push	bc
-	ld	bc,#0000		; 256 fast retries, 256 slow retries
-.wait1: ld	a,(IDE_STATUS)
-	and	M_BSY+M_DRDY
-	cp	M_DRDY			; BSY=0 and DRDY=1?
-	jr	z,.end			; Yes, quit
-	ex	(sp),hl
-	ex	(sp),hl
-	djnz	.wait1			; fast retry
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	dec	c
-	jr	nz,.wait1		; slow retry
-	scf
-.end:	pop	bc
-	ld	a,(IDE_STATUS)		; Clear the INTRQ
-	ret
+        push    bc
+        ld      bc,#0000                ; 256 fast retries, 256 slow retries
+.wait1: ld      a,(IDE_STATUS)
+        and     M_BSY+M_DRDY
+        cp      M_DRDY                  ; BSY=0 and DRDY=1?
+        jr      z,.end                  ; Yes, quit
+        ex      (sp),hl
+        ex      (sp),hl
+        djnz    .wait1                  ; fast retry
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        dec     c
+        jr      nz,.wait1               ; slow retry
+        scf
+.end:   pop     bc
+        ld      a,(IDE_STATUS)          ; Clear the INTRQ
+        ret
 
 .hasTimer:
-	push	bc
-	ld	b,10*4			; 10s
+        push    bc
+        ld      b,10*4                  ; 10s
 .twait1:
-	ld	a,(IDE_STATUS)
-	and	M_BSY+M_DRDY
-	cp	M_DRDY			; BSY=0 and DRDY=1?
-	jr	z,.tend			; Yes, quit
-	in	a,(#E7)
-	cp	250			; 250ms
-	jr	c,.twait1
-	out	(#E6),a			; Reset the timer again
-	djnz	.twait1
-	scf				; Timeout: quit with Cy=on
-.tend:	ld	a,(IDE_STATUS)
-	pop	bc
-	ret
+        ld      a,(IDE_STATUS)
+        and     M_BSY+M_DRDY
+        cp      M_DRDY                  ; BSY=0 and DRDY=1?
+        jr      z,.tend                 ; Yes, quit
+        in      a,(#E7)
+        cp      250                     ; 250ms
+        jr      c,.twait1
+        out     (#E6),a                 ; Reset the timer again
+        djnz    .twait1
+        scf                             ; Timeout: quit with Cy=on
+.tend:  ld      a,(IDE_STATUS)
+        pop     bc
+        ret
 
 ;-----------------------------------------------------------------------------
 ;--- Check for device fault or error
 ;    Output: Cy=on and A=_DISK on fault
 
 CHK_RW_FAULT:
-	call	WAIT_BSY		; wait until the flags are valid
-;	jr	c,.error		; quit on timeout
-	ret	c			; quit on timeout
+        call    WAIT_BSY                ; wait until the flags are valid
+;       jr      c,.error                ; quit on timeout
+        ret     c                       ; quit on timeout
 
-	ld	a,(IDE_STATUS)
-	and	M_DF+M_ERR		; Device fault or error?
-	ret	z			; No, quit wit Cy off
+        ld      a,(IDE_STATUS)
+        and     M_DF+M_ERR              ; Device fault or error?
+        ret     z                       ; No, quit wit Cy off
 ;.error:
-;	call	IDE_OFF
-;	ld	a,_DISK
-;	ld	b,0
-	scf
-	ret
+;       call    IDE_OFF
+;       ld      a,_DISK
+;       ld      b,0
+        scf
+        ret
 
 ;-----------------------------------------------------------------------------
 ; Check for ERROR
 ; 
 CHK_ERR:
-	call	WAIT_BSY		; wait until the flags are valid
-	ret	c
-	bit	ERR,a			; error?
-	ret	z			; No, quit
-	scf
-	ret
+        call    WAIT_BSY                ; wait until the flags are valid
+        ret     c
+        bit     ERR,a                   ; error?
+        ret     z                       ; No, quit
+        scf
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -2160,85 +2467,85 @@ CHK_ERR:
 ; Input:  A = Command code
 ;         Other command registers appropriately set
 ; Output: Cy=1 if ERR bit in status register set
-;	  A = Contents of the status register
+;         A = Contents of the status register
 
 PIO_CMD:
-	push	bc
-	ld	c,a
-	call	WAIT_BSY		; wait until the flags are valid
-	ld	a,c
-	pop	bc
-	ret	c
-	ld	(IDE_CMD),a
-	; Must wait 400ns
-	nop	; 1400ns@3.57MHz
+        push    bc
+        ld      c,a
+        call    WAIT_BSY                ; wait until the flags are valid
+        ld      a,c
+        pop     bc
+        ret     c
+        ld      (IDE_CMD),a
+        ; Must wait 400ns
+        nop     ; 1400ns@3.57MHz
 
 ;-----------------------------------------------------------------------------
 ; 
 WAIT_DRQ:
-	call	WAIT_BSY		; wait until the flags are valid
-	ret	c			; quit on timeout
+        call    WAIT_BSY                ; wait until the flags are valid
+        ret     c                       ; quit on timeout
 
-	out	(#E6),a			; Reset System-timer
-	in	a,(#E7)
-	or	a			; Is the timer present?
-	jr	z,.hasTimer
+        out     (#E6),a                 ; Reset System-timer
+        in      a,(#E7)
+        or      a                       ; Is the timer present?
+        jr      z,.hasTimer
 
-	push	bc
-	ld	bc,#0090		; 256 fast retries, 144 slow retries
-.wait1: ld	a,(IDE_STATUS)
-	rrca				; ERR=1?
-	jr	c,.end2			; Yes, abort with error
-	and	(M_DRQ SHR 1)		; DRQ=1?
-	jr	nz,.end			; Yes, quit
-	ex	(sp),hl
-	ex	(sp),hl
-	djnz	.wait1			; fast retry
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	ex	(sp),hl
-	dec	c
-	jr	nz,.wait1		; slow retry
-	scf				; Cy = timeout
+        push    bc
+        ld      bc,#0090                ; 256 fast retries, 144 slow retries
+.wait1: ld      a,(IDE_STATUS)
+        rrca                            ; ERR=1?
+        jr      c,.end2                 ; Yes, abort with error
+        and     (M_DRQ SHR 1)           ; DRQ=1?
+        jr      nz,.end                 ; Yes, quit
+        ex      (sp),hl
+        ex      (sp),hl
+        djnz    .wait1                  ; fast retry
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        ex      (sp),hl
+        dec     c
+        jr      nz,.wait1               ; slow retry
+        scf                             ; Cy = timeout
 .end:
-;	ex	(sp),hl			; Blind wait for the INTRQ, since
-;	ex	(sp),hl			; this IDE interface doesn't allow
-;	ex	(sp),hl			; us to know when the interrupt would
-;	ex	(sp),hl			; be triggered.
-.end2:	pop	bc
-	ld	a,(IDE_STATUS)
-	ret
+;       ex      (sp),hl                 ; Blind wait for the INTRQ, since
+;       ex      (sp),hl                 ; this IDE interface doesn't allow
+;       ex      (sp),hl                 ; us to know when the interrupt would
+;       ex      (sp),hl                 ; be triggered.
+.end2:  pop     bc
+        ld      a,(IDE_STATUS)
+        ret
 
 .hasTimer:
-	push	bc
-	ld	b,5*4			; 5s
+        push    bc
+        ld      b,5*4                   ; 5s
 .twait1:
-	ld	a,(IDE_STATUS)
-	rrca				; error?
-	jr	c,.tend2		; Yes, abort with Cy=on
-	and	(M_DRQ SHR 1)		; DRQ=1?
-	jr	nz,.tend		; Yes, quit
-	in	a,(#E7)
-	cp	250			; 250ms
-	jr	c,.twait1
-	out	(#E6),a			; Reset the timer again
-	djnz	.twait1
-	scf				; Timeout: quit with Cy=on
-	jr	.tend2
+        ld      a,(IDE_STATUS)
+        rrca                            ; error?
+        jr      c,.tend2                ; Yes, abort with Cy=on
+        and     (M_DRQ SHR 1)           ; DRQ=1?
+        jr      nz,.tend                ; Yes, quit
+        in      a,(#E7)
+        cp      250                     ; 250ms
+        jr      c,.twait1
+        out     (#E6),a                 ; Reset the timer again
+        djnz    .twait1
+        scf                             ; Timeout: quit with Cy=on
+        jr      .tend2
 .tend:
-	out	(#E6),a			; Reset the timer
-.tblindwait:				; Blind wait for the INTRQ, since
-	in	a,(#E6)			; this IDE interface doesn't allow
-					; us to know when the interrupt would
-					; be triggered. Duh!
-	cp	3			; 3*4us
-	jr	c,.tblindwait
-.tend2:	pop	bc
-	ld	a,(IDE_STATUS)		; Clear the INTRQ
-	ret
+        out     (#E6),a                 ; Reset the timer
+.tblindwait:                            ; Blind wait for the INTRQ, since
+        in      a,(#E6)                 ; this IDE interface doesn't allow
+                                        ; us to know when the interrupt would
+                                        ; be triggered. Duh!
+        cp      3                       ; 3*4us
+        jr      c,.tblindwait
+.tend2: pop     bc
+        ld      a,(IDE_STATUS)          ; Clear the INTRQ
+        ret
 
 
 
@@ -2250,24 +2557,24 @@ WAIT_DRQ:
 ; This operation seems to require a delay, otherwise the devices may behave
 ; erratically
 SELDEV:
-	ex	af,af'
-	call	WAIT_BSY
-	ret	c
-	ex	af,af'
-	ld	(IDE_HEAD),a
-	; Detect the system timer
-	out	(#E6),a
-	in	a,(#E7)
-	or	a
-	jr	z,.twait1
-	ex	(sp),hl
-	ex	(sp),hl
-	ret
+        ex      af,af'
+        call    WAIT_BSY
+        ret     c
+        ex      af,af'
+        ld      (IDE_HEAD),a
+        ; Detect the system timer
+        out     (#E6),a
+        in      a,(#E7)
+        or      a
+        jr      z,.twait1
+        ex      (sp),hl
+        ex      (sp),hl
+        ret
 .twait1:
-	in 	a,(#E6)
-	cp	3			; 3*4us
-	jr	c,.twait1
-	ret
+        in      a,(#E6)
+        cp      3                       ; 3*4us
+        jr      c,.twait1
+        ret
 
 ;-----------------------------------------------------------------------------
 ; Disable the interrupts for the current device
@@ -2275,27 +2582,27 @@ SELDEV:
 ; This operation seems to require a delay, otherwise the devices may behave
 ; erratically
 DISDEVINT:
-        ld	a,M_nIEN		; Disable interrupts
+        ld      a,M_nIEN                ; Disable interrupts
         ld      (IDE_DEVCTRL),a
-	; Detect the system timer
-	out	(#E6),a
-	in	a,(#E7)
-	or	a
-	jr	z,.twait1
-	ex	(sp),hl
-	ex	(sp),hl
-	ret
+        ; Detect the system timer
+        out     (#E6),a
+        in      a,(#E7)
+        or      a
+        jr      z,.twait1
+        ex      (sp),hl
+        ex      (sp),hl
+        ret
 .twait1:
-	in 	a,(#E6)
-	cp	3			; 3*4us
-	jr	c,.twait1
-	ret
+        in      a,(#E6)
+        cp      3                       ; 3*4us
+        jr      c,.twait1
+        ret
 
-	ld	a,(IDE_STATUS)
-	rrca				; ERR=1?
-	ccf
-	ret	nc			; Yes, quit
-	jp	WAIT_BSY
+        ld      a,(IDE_STATUS)
+        rrca                            ; ERR=1?
+        ccf
+        ret     nc                      ; Yes, quit
+        jp      WAIT_BSY
 
 
 ;-----------------------------------------------------------------------------
@@ -2307,164 +2614,147 @@ DISDEVINT:
 ;           (INTFLG)=3 if the user pressed CTRL+STOP
 
 RESET_ALL:
-	ld	a,M_DEV			; Select SLAVE
-	call	SELDEV
-	call	WAIT_BSY
-	xor	a			; Select MASTER
-	call	SELDEV
-	call	WAIT_BSY
+        ld      a,M_DEV                 ; Select SLAVE
+        call    SELDEV
+        call    WAIT_BSY
+        xor     a                       ; Select MASTER
+        call    SELDEV
+        call    WAIT_BSY
 
-	call	.atapirst
+        call    .atapirst
 
 .ataonly:
-	xor	a			; Select MASTER
-	call	SELDEV
-	call	WAIT_BSY
+        xor     a                       ; Select MASTER
+        call    SELDEV
+        call    WAIT_BSY
 
-	out	(#E6),a
-	in	a,(#E7)
-	or	a			; Is the system-timer present?
-	jr	z,.hasSystimer		; Yes, use it
+        out     (#E6),a
+        in      a,(#E7)
+        or      a                       ; Is the system-timer present?
+        jr      z,.hasSystimer          ; Yes, use it
 
 .noSystimer:
-        ld      a,M_SRST+M_nIEN		; Do a software reset
+        ld      a,M_SRST+M_nIEN         ; Do a software reset
         ld      (IDE_DEVCTRL),a
-	halt
-	halt				; 16.6ms (spec: 5us)
-        ld	a,M_nIEN		; stop reset
+        halt
+        halt                            ; 16.6ms (spec: 5us)
+        ld      a,M_nIEN                ; stop reset
         ld      (IDE_DEVCTRL),a
-	halt				; 16.6ms (spec: 2ms)
-	call	WAIT_RST		; Wait for the resets to finish
-	ret	c
-	halt
-	halt
-	ret
+        halt                            ; 16.6ms (spec: 2ms)
+        call    WAIT_RST                ; Wait for the resets to finish
+        ret     c
+        halt
+        halt
+        ret
 
 .hasSystimer:
 .twait1:
-	in 	a,(#E6)
-	cp	2			; 2*4us (spec: > 5us)
-	jr	c,.twait1
+        in      a,(#E6)
+        cp      2                       ; 2*4us (spec: > 5us)
+        jr      c,.twait1
 
-        ld	a,M_nIEN		; stop reset
+        ld      a,M_nIEN                ; stop reset
         ld      (IDE_DEVCTRL),a
-	out	(#E6),a
+        out     (#E6),a
 .twait2:
-	in 	a,(#E7)
-	cp	3			; 3ms (spec: > 2ms)
-	jr	c,.twait2
-	call	WAIT_RST		; Wait for the resets to finish
-	ret	c
-	halt
-	halt
-	ret
+        in      a,(#E7)
+        cp      3                       ; 3ms (spec: > 2ms)
+        jr      c,.twait2
+        call    WAIT_RST                ; Wait for the resets to finish
+        ret     c
+        halt
+        halt
+        ret
 
 .atapirst:
-	; Reset a slave ATAPI
-	ld	a,M_DEV			; Select SLAVE
-	call	SELDEV
-	ld	a,ATAPICMD.RESET
-	ld	(IDE_CMD),a
-	; Reset a master ATAPI
-	xor	a			; Select MASTER
-	call	SELDEV
-	ld	a,ATAPICMD.RESET
-	ld	(IDE_CMD),a
-	ret
+        ; Reset a slave ATAPI
+        ld      a,M_DEV                 ; Select SLAVE
+        call    SELDEV
+        ld      a,ATAPICMD.RESET
+        ld      (IDE_CMD),a
+        ; Reset a master ATAPI
+        xor     a                       ; Select MASTER
+        call    SELDEV
+        ld      a,ATAPICMD.RESET
+        ld      (IDE_CMD),a
+        ret
 
 
 ;-----------------------------------------------------------------------------
 ; Checks for a diagnostic error and set a warning flag accordingly
 ; Input : none
-; Output: WRKAREA.MASTER.t321D and WRKAREA.SLAVE.t321D:
-;	  0=no error
+; Output: WRKAREA.t321D and WRKAREA.EMUENA:
+;         0=no error
 ;         bit7=1: error.  b6~b0: reported error code
 ; Modifies: B
 
 
 CHKDIAG:
-	ld	a,(ix+WRKAREA.MASTER+DEVINFO.t321D)
-	inc	a			; Undetected master?
-	scf
-	ret	z			; Yes, quit with error
-	ld	a,(IDE_ERROR)
-	ld	b,a			; b=DIAG status
-	and	#7F			; Crop the master error code
-	cp	1			; Any error?
-	jr	z,.chkslave		; No, skip
-.saveerrms:	; Save the error code from the master
-	or	#80
-	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),a
-	bit	7,b			; Error on slave?
-	scf
-	ret	z			; No, quit
-.chkslave:
-	bit	7,b			; Error on slave?
-	ret	z			; No, quit
-	ld	a,M_DEV			; Select the slave
-	call	SELDEV
-	ld	a,(IDE_ERROR)
-	and	#7F			; Crop the slave error code
-	cp	1			; Any error?
-	ret	z			; No, quit
-.saveerrsl:	; Save the error code from the slave
-	or	#80
-	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),a
-	ld	a,b
-	cp	1			; Any error reported?
-	ret	z			; No, quit with Cy=off
-	scf				; Cy=on if there was any error
-	ret
+        ld      a,(ix+WRKAREA.t321D)
+        inc     a                       ; Undetected master?
+        scf
+        ret     z                       ; Yes, quit with error
+        ld      a,(IDE_ERROR)
+        ld      b,a                     ; b=DIAG status
+        and     #7F                     ; Crop the master error code
+        cp      1                       ; Any error?
+        ret     z                       ; No, return without error
+.saveerrms:     ; Save the error code from the master
+        or      #80
+        ld      (ix+WRKAREA.t321D),a
+        xor     a                       ; Also disable disk emulation
+        ld      (ix+WRKAREA.DSKEMU+DSKEMU.ENABLE),a
+        ret                             ; Return without error
 
 ;-----------------------------------------------------------------------------
 ; Prints an explanation message for a diagnostic error
 ; Input: A=Diagnostic error
 
 DIAGERRPRT:
-	cp	#FE			; Undetected master?
-	ld	de,DIAGS_S.nomaster
-	jr	z,.print		; Yes, print
-	and	#7F			; Crop the error code
-	jr	z,.print		; 0=Undetected master: print
-	ld	b,a
-	dec	b			; adjust for the switch case
-	djnz	.buff
-	ld	de,DIAGS_S.formatter		; ERR=2
-	jr	.print
-.buff:	djnz	.ecc
-	ld	de,DIAGS_S.buffer		; ERR=3
-	jr	.print
-.ecc:	djnz	.mcu
-	ld	de,DIAGS_S.ECC			; ERR=4
-	jr	.print
-.mcu:	djnz	.unkn
-	ld	de,DIAGS_S.microcontroller	; ERR=5
-.print:	jp	PRINT
-.unkn:	ld	de,DIAGS_S.unknown
-	push	af
-	call	PRINT
-	pop	af
-	call	PRINTHEXBYTE
-	ld	a,'>'
-	call	CHPUT
-	ld	de,CRLF_S
-	jr	.print
+        cp      #FE                     ; Undetected master?
+        ld      de,DIAGS_S.nomaster
+        jr      z,.print                ; Yes, print
+        and     #7F                     ; Crop the error code
+        jr      z,.print                ; 0=Undetected master: print
+        ld      b,a
+        dec     b                       ; adjust for the switch case
+        djnz    .buff
+        ld      de,DIAGS_S.formatter            ; ERR=2
+        jr      .print
+.buff:  djnz    .ecc
+        ld      de,DIAGS_S.buffer               ; ERR=3
+        jr      .print
+.ecc:   djnz    .mcu
+        ld      de,DIAGS_S.ECC                  ; ERR=4
+        jr      .print
+.mcu:   djnz    .unkn
+        ld      de,DIAGS_S.microcontroller      ; ERR=5
+.print: jp      PRINT
+.unkn:  ld      de,DIAGS_S.unknown
+        push    af
+        call    PRINT
+        pop     af
+        call    PRINTHEXBYTE
+        ld      a,'>'
+        call    CHPUT
+        ld      de,CRLF_S
+        jr      .print
 
 ;-----------------------------------------------------------------------------
 ; Subroutine to read blocks of arbitrary size on the IDE 
 ; Input: DE =Data destination
-;	 BC =block size
+;        BC =block size
 ;        IYL=Number of blocks
 READ_DATA:
-	call	SETLDIRHLPR	; hl'=Pointer to data transfer helper
+        call    SETLDIRHLPR     ; hl'=Pointer to data transfer helper
 .loop:
-	call	WAIT_DRQ
-	ret	c
-	ld	hl,IDE_DATA
-	call	RUN_HLPR
-	dec	iyl
-	jp	nz,.loop
-	ret
+        call    WAIT_DRQ
+        ret     c
+        ld      hl,IDE_DATA
+        call    RUN_HLPR
+        dec     iyl
+        jp      nz,.loop
+        ret
 
 
 ;-----------------------------------------------------------------------------
@@ -2473,25 +2763,25 @@ READ_DATA:
 ;        BC =block size
 ;        IYL=Number of blocks
 WRITE_DATA:
-	call	SETLDIRHLPR	; hl'=Pointer to LDIR helper in RAM
+        call    SETLDIRHLPR     ; hl'=Pointer to LDIR helper in RAM
 .loop:
-	call	WAIT_DRQ
-	ret	c
-	ld	de,IDE_DATA
-	call	RUN_HLPR
-	call	CHK_RW_FAULT
-	ret	c
-	dec	iyl
-	jp	nz,.loop
-	ret
+        call    WAIT_DRQ
+        ret     c
+        ld      de,IDE_DATA
+        call    RUN_HLPR
+        call    CHK_RW_FAULT
+        ret     c
+        dec     iyl
+        jp      nz,.loop
+        ret
 
-LDI512:	; Z80 optimized 512 byte transfer
-	exx
-	rept 512
-	ldi
-	endm
+LDI512: ; Z80 optimized 512 byte transfer
+        exx
+        rept 512
+        ldi
+        endm
 
-	ret
+        ret
 
 
 
@@ -2501,45 +2791,39 @@ LDI512:	; Z80 optimized 512 byte transfer
 ; Input: DE = String address
 
 PRINT:
-	ld	a,(de)
-	or	a
-	ret	z
-	call	CHPUT
-	inc	de
-	jr	PRINT
+        ld      a,(de)
+        or      a
+        ret     z
+        call    CHPUT
+        inc     de
+        jr      PRINT
 
 
 ;-----------------------------------------------------------------------------
 ;
 ; Obtain the work area address for the driver or the device
 ; Input: A=Selects where to point inside the work area
-;	   0: base work area
-;	   1: work area for the master
-;	   2: work area for the slave
+;          0: base work area
+;          1: work area for the master
+;          2: work area for the slave
 ; Output: IX=Pointer to the selected work area
 ; Modifies: disables the IDE registers
 
 MY_GWORK:
-	push	af
-	xor	a
-	EX	AF,AF'
-	XOR	A
-	LD	IX,GWORK
-	call	CALBNK
-	pop	af
-	push	de
-	ld	e,(ix)			; de=Pointer to the WorkAREA in RAM 
-	ld	d,(ix+1)
-	ld	ix,0
-	or	a
-	jr	z,.end
-	cp	1
-	ld	ix,WRKAREA.MASTER+DEVINFO.BASE
-	jr	z,.end
-	ld	ix,WRKAREA.SLAVE+DEVINFO.BASE
-.end:	add	ix,de			; Point ix to the device work area
-	pop	de
-	ret
+        push    af
+        xor     a
+        EX      AF,AF'
+        XOR     A
+        LD      IX,GWORK
+        call    CALBNK
+        pop     af
+        push    de
+        ld      e,(ix)                  ; de=Pointer to the WorkAREA in RAM 
+        ld      d,(ix+1)
+        ld      ix,0
+        add     ix,de                   ; Point ix to the device work area
+        pop     de
+        ret
 
 ;-----------------------------------------------------------------------------
 ;
@@ -2550,42 +2834,40 @@ MY_GWORK:
 ; Modifies F, C
 
 CHECK_DEV_LUN:
-	or	a	;Check device index
-	scf
-	ret	z	;Return with error if devindex=0
-	cp	3
-	ccf
-	ret	c	;Return with error if devindex>2
+        or      a       ;Check device index
+        scf
+        ret     z       ;Return with error if devindex=0
+        cp      3
+        ccf
+        ret     c       ;Return with error if devindex>2
 
-	ld	c,a	; c=device index
+        ld      c,a     ; c=device index
 
+        ld      a,b     ; Check LUN number
+        cp      1
+        ld      a,c
+        scf
+        ret     nz
 
-
-	ld	a,b	; Check LUN number
-	cp	1
-	ld	a,c
-	scf
-	ret	nz
-
-	push	hl
-	push	de
-	call	MY_GWORK
-	pop	de
-	pop	hl
-	ld	c,a
-	ld	a,(ix+DEVINFO.t321D)
-	and	3
-	jr	z,.nodev
-	cp	1		; TODO: Implement CHS support
-	jr	z,.nodev	; For now, CHS devices are unsupported
-	ld	a,c
-	or	a
-	ret
+        push    hl
+        push    de
+        call    MY_GWORK
+        pop     de
+        pop     hl
+        ld      c,a
+        ld      a,(ix+WRKAREA.t321D)
+        and     3
+        jr      z,.nodev
+        cp      1               ; TODO: Implement CHS support
+        jr      z,.nodev        ; For now, CHS devices are unsupported
+        ld      a,c
+        or      a
+        ret
 
 .nodev:
-	ld	a,c
-	scf
-	ret
+        ld      a,c
+        scf
+        ret
 
 
 
@@ -2594,8 +2876,8 @@ CHECK_DEV_LUN:
 ; Input: HL': Address of the target routine
 ; ------------------------------------------------
 RUN_HLPR:
-	exx
-	jp	(hl)
+        exx
+        jp      (hl)
 
 ; ------------------------------------------------
 ; Setup the arbitrary block size LDIR helper to be used
@@ -2604,41 +2886,41 @@ RUN_HLPR:
 ; Modifies: AF, DE', HL'
 ; ------------------------------------------------
 SETLDIRHLPR:
-	ld	a,b
-	or	c		; Shortcut comparison. Takes advantage that
-				; only 512 and 2 will have this OR bitmask
-				; to save time
-	cp	HIGH 512	; bc=512?
-	exx
-	jr	nz,.useLDIR	; No, must use LDIR then
+        ld      a,b
+        or      c               ; Shortcut comparison. Takes advantage that
+                                ; only 512 and 2 will have this OR bitmask
+                                ; to save time
+        cp      HIGH 512        ; bc=512?
+        exx
+        jr      nz,.useLDIR     ; No, must use LDIR then
 
-	; Check for a Z80 or R800
-	xor	a		; Clear Cy
-	dec	a		; A=#FF
-	db	#ED,#F9		; mulub a,a
-	jr	c,.useLDIR	; Always use LDIR in RAM for the R800
+        ; Check for a Z80 or R800
+        xor     a               ; Clear Cy
+        dec     a               ; A=#FF
+        db      #ED,#F9         ; mulub a,a
+        jr      c,.useLDIR      ; Always use LDIR in RAM for the R800
 
-	ld	hl,LDI512
-	exx
-	ret
+        ld      hl,LDI512
+        exx
+        ret
 
 .useLDIR:
-	exx
-	push	bc
-	exx
-	pop	de		; de=block size
-	ld	l,(ix+DEVINFO.pBASEWRK)
-	ld	h,(ix+DEVINFO.pBASEWRK+1)
-	; Set the the block size
-	; *** BLKLEN must be the first data in the workArea
-	ld	(hl),e
-	inc	hl
-	ld	(hl),d
-	; Point to the data transfer routine
-	ld	de,WRKAREA.LDIRHLPR-1
-	add	hl,de
-	exx			; hl'=Pointer to LDIR helper routine
-	ret
+        exx
+        push    bc
+        exx
+        pop     de              ; de=block size
+        ld      l,(ix+WRKAREA.pBASEWRK)
+        ld      h,(ix+WRKAREA.pBASEWRK+1)
+        ; Set the the block size
+        ; *** BLKLEN must be the first data in the workArea
+        ld      (hl),e
+        inc     hl
+        ld      (hl),d
+        ; Point to the data transfer routine
+        ld      de,WRKAREA.LDIRHLPR-1
+        add     hl,de
+        exx                     ; hl'=Pointer to LDIR helper routine
+        ret
 
 
 
@@ -2646,50 +2928,48 @@ SETLDIRHLPR:
 ; Initialize the Work-area
 ; ------------------------------------------------
 INIWORK:
-	; Clear the WorkArea
-	push	ix
-	pop	hl
-	push	hl
-	ld	b,WRKAREA._SIZE
-	xor	a
+        ; Clear the WorkArea
+        push    ix
+        pop     hl
+        push    hl
+        ld      b,WRKAREA._SIZE
+        xor     a
 .clrwork2:
-	ld	(hl),a
-	inc	hl
-	djnz	.clrwork2
+        ld      (hl),a
+        inc     hl
+        djnz    .clrwork2
 
-	pop	hl
-	; Set the pointers to go back to the base of the WorkArea
-	ld	(ix+WRKAREA.MASTER+DEVINFO.pBASEWRK),l
-	ld	(ix+WRKAREA.MASTER+DEVINFO.pBASEWRK+1),h
-	ld	(ix+WRKAREA.SLAVE+DEVINFO.pBASEWRK),l
-	ld	(ix+WRKAREA.SLAVE+DEVINFO.pBASEWRK+1),h
+        pop     hl
+        ; Set the pointers to go back to the base of the WorkArea
+        ld      (ix+WRKAREA.pBASEWRK),l
+        ld      (ix+WRKAREA.pBASEWRK+1),h
 
-	; Install the data transfer helper routine in the WorkArea 
-	; This speeds up the LDIR speed a lot for the R800
-	ld	de,WRKAREA.LDIRHLPR
-	add	hl,de
-	ex	de,hl
-	ld	hl,R800DATHLP
-	ld	bc,R800DATHLP.end-R800DATHLP
-	ldir
+        ; Install the data transfer helper routine in the WorkArea 
+        ; This speeds up the LDIR speed a lot for the R800
+        ld      de,WRKAREA.LDIRHLPR
+        add     hl,de
+        ex      de,hl
+        ld      hl,R800DATHLP
+        ld      bc,R800DATHLP.end-R800DATHLP
+        ldir
 
-	; Point the LD BC (addr) from LDIRHLPR to BLKLEN
-	push	ix
-	pop	hl
-	ld	de,WRKAREA.BLKLEN
-	add	hl,de				; hl=pointer to BLKLEN
-	ld	(ix+WRKAREA.LDIRHLPR+3),l
-	ld	(ix+WRKAREA.LDIRHLPR+4),h
-	ret
+        ; Point the LD BC (addr) from LDIRHLPR to BLKLEN
+        push    ix
+        pop     hl
+        ld      de,WRKAREA.BLKLEN
+        add     hl,de                           ; hl=pointer to BLKLEN
+        ld      (ix+WRKAREA.LDIRHLPR+3),l
+        ld      (ix+WRKAREA.LDIRHLPR+4),h
+        ret
 
 ; ------------------------------------------------
 ; R800 data transfer routine, copied to the WorkArea
 ; ------------------------------------------------
 R800DATHLP:
-	exx
-	ld	bc,(0)		; The address will be set by INIWORK
-	ldir
-	ret
+        exx
+        ld      bc,(0)          ; The address will be set by INIWORK
+        ldir
+        ret
 .end:
 
 ;-----------------------------------------------------------------------------
@@ -2699,75 +2979,195 @@ R800DATHLP:
 ; Output  : none
 ; Modifies: all
 MYSETSCR:
-	ld	a,(MSXVER)
-	or	a			; MSX1?
-	jr	nz,.notMSX1		; No, skip
+        ld      a,(MSXVER)
+        or      a                       ; MSX1?
+        jr      nz,.notMSX1             ; No, skip
 .MSX1:
-	ld	a,(SCRMOD)
-	or	a			; SCREEN0 already?
-	ret	z			; Yes, quit
-	jp	INITXT			; set screen0
+        ld      a,(SCRMOD)
+        or      a                       ; SCREEN0 already?
+        ret     z                       ; Yes, quit
+        jp      INITXT                  ; set screen0
 
 .notMSX1:
-	ld	c,23h			; Block-2, R#3
-	ld 	ix,REDCLK
-	call	EXTROM
-	and	1
-	ld	b,a
-	ld	a,(SCRMOD)
-	cp	b
-	jr	nz,.restore
-	inc	c
-	ld 	ix,REDCLK
-	call	EXTROM
-	ld	b,a
-	inc	c
-	ld 	ix,REDCLK
-	call	EXTROM
-	add	a,a
-	add	a,a
-	add	a,a
-	add	a,a
-	or	b
-	ld	b,a
-	ld	a,(LINLEN)
-	cp	b
-	ret	z
+        ld      c,23h                   ; Block-2, R#3
+        ld      ix,REDCLK
+        call    EXTROM
+        and     1
+        ld      b,a
+        ld      a,(SCRMOD)
+        cp      b
+        jr      nz,.restore
+        inc     c
+        ld      ix,REDCLK
+        call    EXTROM
+        ld      b,a
+        inc     c
+        ld      ix,REDCLK
+        call    EXTROM
+        add     a,a
+        add     a,a
+        add     a,a
+        add     a,a
+        or      b
+        ld      b,a
+        ld      a,(LINLEN)
+        cp      b
+        ret     z
 .restore:
-	xor	a		; Don't displat the function keys
-	ld	ix,SDFSCR
-	jp	EXTROM
+        xor     a               ; Don't displat the function keys
+        ld      ix,SDFSCR
+        jp      EXTROM
 
 ;-----------------------------------------------------------------------------
 ; Prints a byte in hex
 ; Input : A=byte to be printed
 ; Modifies: C
 PRINTHEXBYTE:
-	ld	c,a
-	rrca
-	rrca
-	rrca
-	rrca
-	and	#F
-	call	printnibble
-	ld	a,c
-	and	#F
-	call	printnibble
-	ret
+        ld      c,a
+        rrca
+        rrca
+        rrca
+        rrca
+        and     #F
+        call    printnibble
+        ld      a,c
+        and     #F
+        call    printnibble
+        ret
 
 printnibble:
-	cp	10		; <=9?
-	jr	c,.print09	; Yes, skip
-;	ld	a,9		; Limit to 1 digit
-	cp	15
-	jr	c,.printAF
-	ld	a,#F		; Limit to 15
+        cp      10              ; <=9?
+        jr      c,.print09      ; Yes, skip
+;       ld      a,9             ; Limit to 1 digit
+        cp      15
+        jr      c,.printAF
+        ld      a,#F            ; Limit to 15
 .printAF:
-	add	"A"-10
-	jp	CHPUT
+        add     "A"-10
+        jp      CHPUT
 .print09:
-	add	"0"
-	jp	CHPUT
+        add     "0"
+        jp      CHPUT
+
+;-----------------------------------------------------------------------------
+; Debug functions
+;-----------------------------------------------------------------------------
+IF DEBUG
+
+PRTCHAR:
+        ex      af,af'
+        push    af
+        ; safe IFF
+        ld      a, i  ; this is the core of the trick, it sets P/V to the value of IFF so P/V is set iff interrupts were enabled at that point
+        jp      pe,.1
+        ld      a, i  ; test again, to fix potential "false negative" from interrupt occurring at first test
+.1:     push    af  ; save flags
+        exx
+        push    ix
+        push    iy
+        push    bc
+        push    de
+        push    hl
+        exx
+        ex      af,af'
+        push    ix
+        push    iy
+        ld      ix,CHPUT
+        ld      iy,(EXPTBL-1)
+        call    CALSLT
+        pop     iy
+        pop     ix
+        ex      af,af'
+        exx
+        pop     hl
+        pop     de
+        pop     bc
+        pop     iy
+        pop     ix
+        exx
+
+        ;; restore IFF
+        pop     af      ; get back flags
+        di
+        jp      po,.2   ; po = P/V reset so in this case it means interrupts were disabled before the routine was called
+        ei              ; re-enable interrupts
+.2:
+        pop     af
+        ex      af,af'
+        ret
+
+WAITKEY:
+        ex      af,af'
+        push    af
+        ; safe IFF
+        ld      a, i  ; this is the core of the trick, it sets P/V to the value of IFF so P/V is set iff interrupts were enabled at that point
+        jp      pe,.1
+        ld      a, i  ; test again, to fix potential "false negative" from interrupt occurring at first test
+.1:     push    af  ; save flags
+        exx
+        push    ix
+        push    iy
+        push    bc
+        push    de
+        push    hl
+        exx
+        ex      af,af'
+        push    ix
+        push    iy
+        push    af
+        ld      ix,CHGET
+        ld      iy,(EXPTBL-1)
+        call    CALSLT
+        pop     af
+        pop     iy
+        pop     ix
+        ex      af,af'
+        exx
+        pop     hl
+        pop     de
+        pop     bc
+        pop     iy
+        pop     ix
+        exx
+
+        ;; restore IFF
+        pop     af      ; get back flags
+        di
+        jp      po,.2   ; po = P/V reset so in this case it means interrupts were disabled before the routine was called
+        ei              ; re-enable interrupts
+.2:
+        pop     af
+        ex      af,af'
+        ret
+
+PRTHEXBYTE:
+        ld      c,a
+        rrca
+        rrca
+        rrca
+        rrca
+        and     #F
+        call    xprintnibble
+        ld      a,c
+        and     #F
+        call    xprintnibble
+        ret
+
+xprintnibble:
+        cp      10              ; <=9?
+        jr      c,.xprint09      ; Yes, skip
+;       ld      a,9             ; Limit to 1 digit
+        cp      15
+        jr      c,.xprintAF
+        ld      a,#F            ; Limit to 15
+.xprintAF:
+        add     "A"-10
+        jp      PRTCHAR
+.xprint09:
+        add     "0"
+        jp      PRTCHAR
+
+ENDIF
 
 ;-----------------------------------------------------------------------------
 ;
@@ -2777,54 +3177,51 @@ printnibble:
 ; Modifies: all
 
 INICHKSTOP:
-	ld	a,(INTFLG)
-	cp	4			; Was STOP pressed?
-	ret	nz			; No, quit as fast as possible 
+        ld      a,(INTFLG)
+        cp      4                       ; Was STOP pressed?
+        ret     nz                      ; No, quit as fast as possible 
 
-	; Handle STOP to pause and read messages, and ask for the copyright info
-	ld	de,BOOTPAUSE_S
-	call	PRINT
-.wait1:	ld	a,7
-	call	SNSMAT
-	and	10h			; Is STOP still pressed?
-	jr	z,.wait1		; Wait for STOP to be released
-	xor	a
-	ld	(INTFLG),a		; Clear STOP flag
-	ld	b,0			; b=inhibit 'i' key flag
-.wait2: call	CHSNS
-	call	nz,.chkikey		; Wait until a key is pressed
-	ld	a,(INTFLG)
-	cp	4			; Was STOP pressed?
-	jr	nz,.wait2		; No, return
-	xor	a
-	ld	(INTFLG),a		; Clear STOP flag
-	call	KILBUF
-	ld	b,30			; Since the user is trying pause the
-.wait3:	halt				; boot messages, this gives him enough
-					; time to react and pause the next
-					; driver
-	ld	a,(INTFLG)
-	cp	4			; Was STOP pressed?
-	ret	z			; quit so the next driver can process it
-	djnz	.wait3			; The user will have the impression
-					; that he has a perfect timing.   ;)
-	ret
+        ; Handle STOP to pause and read messages, and ask for the copyright info
+        ld      de,BOOTPAUSE_S
+        call    PRINT
+.wait1: ld      a,7
+        call    SNSMAT
+        and     10h                     ; Is STOP still pressed?
+        jr      z,.wait1                ; Wait for STOP to be released
+        xor     a
+        ld      (INTFLG),a              ; Clear STOP flag
+        ld      b,0                     ; b=inhibit 'i' key flag
+.wait2: call    CHSNS
+        call    nz,.chkikey             ; Wait until a key is pressed
+        ld      a,(INTFLG)
+        cp      4                       ; Was STOP pressed?
+        jr      nz,.wait2               ; No, return
+        xor     a
+        ld      (INTFLG),a              ; Clear STOP flag
+        call    KILBUF
+        ld      b,30                    ; Since the user is trying pause the
+.wait3: halt                            ; boot messages, this gives him enough
+                                        ; time to react and pause the next
+                                        ; driver
+        ld      a,(INTFLG)
+        cp      4                       ; Was STOP pressed?
+        ret     z                       ; quit so the next driver can process it
+        djnz    .wait3                  ; The user will have the impression
+                                        ; that he has a perfect timing.   ;)
+        ret
 
 .chkikey:
-	bit	0,b			; Was the copyright message shown?
-	ret	nz			; Yes, return
-	call	CHGET
-	cp	'i'
-	jr	z,.showcopyright
-	cp	'I'
-	ret	nz
+        bit     0,b                     ; Was the copyright message shown?
+        ret     nz                      ; Yes, return
+        call    CHGET
+        cp      'i'
+        jr      z,.showcopyright
+        cp      'I'
+        ret     nz
 .showcopyright:
-	inc	b			; Inhibit further presses of the i key 
-	ld	de,COPYRIGHT_S
-	jp	PRINT
-
-
-
+        inc     b                       ; Inhibit further presses of the i key 
+        ld      de,COPYRIGHT_S
+        jp      PRINT
 
 
 ;=======================
@@ -2832,72 +3229,70 @@ INICHKSTOP:
 ;=======================
 
 INFO_S:
-	db	13,"Sunrise compatible IDE driver v",27,'J'
-	db	VER_MAIN+30h,'.',VER_SEC+30h,'.',VER_REV+30h
+        db      13,"Carnivore2 CompactFlash driver v",27,'J'
+        db      VER_MAIN+30h,'.',VER_SEC+30h,'.',VER_REV+30h
 
-	ifdef MASTER_ONLY
-
-	db 13,10,"Master device only edition"
-
-	endif
-
-CRLF_S:	db	13,10,0
+CRLF_S: db      13,10,0
 COPYRIGHT_S:
-	db	"(c) 2009 Konamiman",13,10
-	db	"(c) 2014 Piter Punk",13,10
-	db	"(c) 2017 FRS",13,10,13,10,0
+        db      "(c) 2009 Konamiman",13,10
+        db      "(c) 2014 Piter Punk",13,10
+        db      "(c) 2017 FRS",13,10
+        db      "(c) 2024 Tim Brugman",13,10,13,10,0
 
 BOOTPAUSE_S:
-	db	"Paused. Press <i> to show the copyright info.",13,10,0
+        db      "Paused. Press <i> to show the copyright info.",13,10,0
 
 SEARCH_S:
-	db	"Searching: ",0
+        db      "Searching: ",0
 
 NODEVS_S:
-	db	"not found",13,10,0
+        db      "not found",13,10,0
 ABORTED_S:
-	db	"<aborted>",13,10,0
+        db      "<aborted>",13,10,0
 INIT_S:
-	db	13,"Initializing : ",27,'J',0
+        db      13,"Initializing : ",27,'J',0
 MASTER_S:
-	db	13,"Master device: ",27,'J',0
-
-	ifndef MASTER_ONLY
-
+        db      13,"Master device: ",27,'J',0
 SLAVE_S:
-	db	13,"Slave device : ",27,'J',0
+        db      13,"Emulated disk: ",27,'J',0
+NAMEPREFIX_S:
+        db      13,10,"  -> ",0
+DSKEMU_OFF_S:
+        db      "Disabled",13,10,0
+DSKEMU_ON_S:
+        db      "Enabled",13,10,0
+DSKEMU_EXCL_S:
+        db      "As boot disk",13,10,0
 
-	endif
-
-OK_S:	db	"Ok",13,10,0
+OK_S:   db      "Ok",13,10,0
 ERROR_S:
-	db	"Error!",13,10,0
+        db      "Error!",13,10,0
 
 DETECT_S:
-	db	"detecting",0
-.unknown:	db	"Unknown device ",0
-.unsupported:	db	"Unsuppored device",0
-.oparenthesis:	db	" (",0
-.chs:		db	"CHS",0
-.lba:		db	"LBA",0
-.atapi:		db	"ATP",0
+        db      "detecting",0
+.unknown:       db      "Unknown device ",0
+.unsupported:   db      "Unsuppored device",0
+.oparenthesis:  db      " (",0
+.chs:           db      "CHS",0
+.lba:           db      "LBA",0
+.atapi:         db      "ATP",0
 
 
 DIAGS_S:
-.nomaster:		db	"<failed>",7,13,10,0
-.formatter:		db	"<formatter device error>",7,13,10,0
-.buffer:		db	"<sector buffer error>",7,13,10,0
-.ECC:			db	"<ECC circuitry error>",7,13,10,0
-.microcontroller:	db	"<controlling microprocessor error>",7,13,10,0
-.unknown:		db	"<unknown error ",7,0
+.nomaster:              db      "<failed>",7,13,10,0
+.formatter:             db      "<formatter device error>",7,13,10,0
+.buffer:                db      "<sector buffer error>",7,13,10,0
+.ECC:                   db      "<ECC circuitry error>",7,13,10,0
+.microcontroller:       db      "<controlling microprocessor error>",7,13,10,0
+.unknown:               db      "<unknown error ",7,0
 
 
 ;=======================
 ; Variables
 ;=======================
-;	.phase	#C000
-;TEMP_WORK	WRKTEMP
-;	.dephase
+;       .phase  #C000
+;TEMP_WORK      WRKTEMP
+;       .dephase
 
 
 
@@ -2907,6 +3302,6 @@ DIAGS_S:
 
 DRV_END:
 
-	ds	3ED0h-(DRV_END-DRV_START)
+        ds      3ED0h-(DRV_END-DRV_START)
 
-	end
+        end
