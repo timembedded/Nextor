@@ -8,6 +8,7 @@ all:
 	$(MAKE) -C command/msxdos
 	$(MAKE) -C tools
 	$(MAKE) -C tools/C
+	$(MAKE) -C carnivore2
 
 .PHONY: clean
 
@@ -16,3 +17,4 @@ clean:
 	$(MAKE) -C command/msxdos clean
 	$(MAKE) -C tools clean
 	$(MAKE) -C tools/C clean
+	$(MAKE) -C carnivore2 clean

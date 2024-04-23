@@ -1,0 +1,204 @@
+        .z80
+
+doscall:                equ     0005h
+
+sectors_per_chunk:      equ     90
+
+start_100:
+        ld      sp,(6)
+        ld      de,s_intro
+        ld      hl,s_intro_size
+        call    write_to_stdout
+        ld      de,s_enter_source
+        ld      hl,s_enter_source_size
+        call    write_to_stdout
+
+        ld      c,#1            ; Console Input
+        call    doscall
+        and     #df
+        push    af              ; Source Drive (A-H)
+
+loop_input_num_disks:
+        ld      de,s_how_many_disks
+        ld      hl,s_how_many_disks_size
+        call    write_to_stdout
+        ld      c,#1            ; Console Input
+        call    doscall
+        cp      '1'
+        jr      c,loop_input_num_disks
+        cp      '9'+1
+        jr      nc,loop_input_num_disks
+        sub     '0'
+        ld      (v_number_of_disks),a
+        ld      de,s_enter_destination
+        ld      hl,s_enter_destination_size
+        call    write_to_stdout
+
+        ld      de,buffer128    ; Read filename from console into buffer128
+        ld      hl,#80
+        call    read_from_stdin
+        ld      de,buffer128
+loop_input_file_name:
+        ld      a,h
+        or      l
+        jr      z,file_name_done
+        ld      a,(de)
+        inc     de
+        dec     hl
+        cp      #d
+        jr      nz,loop_input_file_name
+        dec     de
+        xor     a               ; zero-terminate the string
+        ld      (de),a
+file_name_done:
+
+        ld      c,#44           ; Create File Handle
+        ld      de,buffer128
+        xor     a
+        ld      b,a
+        call    doscall
+        jp      nz,exit_with_error
+        ld      a,b
+        ld      (v_file_handle),a
+        ld      c,#46           ; Ensure File Handle
+        call    doscall
+        jp      nz,exit_with_error
+        ld      c,#1a           ; Set disk transfer address
+        ld      de,transfer_buffer
+        call    doscall
+        pop     af              ; Source Drive (A-H)
+        sub     #41             ; A = 0, B = 1, etc.
+        ld      l,a
+        ld      h,sectors_per_chunk ; Sectors to read
+
+loop_read_disk:
+        ld      de,0
+        xor     a
+        ld      (v_chunks_to_do),a
+loop_do_chunk:
+        push    af
+        push    hl
+        push    de
+        ld      c,#2f           ; Absolute sector read
+        call    doscall
+        jr      nz,exit_with_error
+        ld      a,(v_chunks_to_do)
+        or      a
+        jr      nz,skip_disk_detect
+        ld      a,(transfer_buffer + 15)
+        cp      #f8             ; Single-sided disk?
+        ld      a,720 / sectors_per_chunk
+        jr      z,singledsk
+        ld      a,1440 / sectors_per_chunk
+singledsk:
+        ld      (v_chunks_to_do),a
+skip_disk_detect:
+        ld      a,(v_file_handle)
+        ld      b,a
+        ld      c,#49           ; Write to file handle
+        ld      de,transfer_buffer
+        ld      hl,sectors_per_chunk * 512
+        call    doscall
+        jr      nz,exit_with_error
+        pop     de
+        ld      hl,sectors_per_chunk
+        add     hl,de
+        ex      de,hl
+        pop     hl
+        ld      a,(v_chunks_to_do)
+        ld      b,a
+        pop     af
+        inc     a
+        cp      b
+        jr      c,loop_do_chunk
+        ld      a,(v_number_of_disks)
+        dec     a
+        ld      (v_number_of_disks),a
+        or      a
+        jr      z,all_floppies_done
+        push    hl
+        ld      de,s_next_floppy
+        ld      hl,s_next_floppy_size
+        call    write_to_stdout
+        ld      c,#8            ; Console input without echo
+        call    doscall
+        pop     hl
+        jp      loop_read_disk
+
+all_floppies_done:
+        ld      a,(v_file_handle)
+        ld      b,a
+        ld      c,#45           ; Close file handle
+        call    doscall
+        jr      nz,exit_with_error
+        xor     a
+
+exit_with_error:
+        ld      b,a             ; Error code
+        ld      c,#62           ; Terminate with error code
+        jp      doscall
+
+read_from_stdin:
+        ld      c,#48           ; Read from file handle
+        ld      b,#0            ; STDIN
+        call    doscall
+        ret     z
+        jp      exit_with_error
+
+write_to_stdout:
+        ld      c,#49           ; Write to file handle
+        ld      b,#1            ; STDOUT
+        call    doscall
+        ret     z
+        jp      exit_with_error
+
+s_intro:                db "Getdisk v 2.0 - 1993 by Michel Shuqair",10,10,13
+s_intro_size:           equ $ - s_intro
+
+s_enter_source:         db "Enter source drive (A-H) "
+s_enter_source_size:    equ $ - s_enter_source
+
+s_how_many_disks:       db 10,13,"How many disks? "
+s_how_many_disks_size:  equ $ - s_how_many_disks
+
+s_enter_destination:    db 10,13,"Enter the name of destination file (Drive",#5c,"path",#5c,"filename) "
+s_enter_destination_size: equ $ - s_enter_destination
+
+s_next_floppy:          db 10,13,"Insert next floppy disk and press any key..."
+s_next_floppy_size:     equ $ - s_next_floppy
+
+v_chunks_to_do:
+        db #00
+v_number_of_disks:
+        db #00
+v_file_handle:
+        db #00
+
+buffer128:
+        db #f5,#0e,#08,#cd,#05,#00,#f1,#20
+        db #f2,#cd,#49,#03,#c3,#fe,#01,#11
+        db #88,#03,#01,#d4,#3a,#ed,#b0,#cd
+        db #fd,#02,#01,#22,#03,#dd,#e5,#e3
+        db #cd,#f3,#02,#e1,#c0,#0a,#03,#5f
+        db #0a,#03,#57,#b7,#ed,#52,#c9,#01
+        db #b5,#0e,#d9,#01,#88,#03,#21,#00
+        db #00,#e5,#dd,#e1,#0a,#03,#5f,#0a
+        db #03,#57,#dd,#19,#0a,#03,#5f,#0a
+        db #03,#57,#ed,#5a,#d9,#0b,#78,#b1
+        db #d9,#20,#e9,#c9,#5f,#bb,#6b,#1a
+        db #cd,#32,#03,#1a,#b7,#c8,#1b,#cd
+        db #50,#03,#18,#f7,#11,#5e,#da,#47
+        db #04,#05,#c8,#1a,#1b,#b7,#20,#fb
+        db #18,#f7,#1a,#b7,#c8,#cd,#50,#03
+        db #13,#18,#f7,#3e,#0d,#cd,#50,#03
+
+transfer_buffer:
+        db #3e,#0e,#08,#cd,#05,#00,#f1,#20
+        db #f2,#cd,#49,#03,#c3,#fe,#01,#11
+        db #88,#03,#01,#d4,#3a,#ed,#b0,#cd
+        db #fd,#02,#01,#22,#03,#dd,#e5,#e3
+        db #cd,#f3,#02,#e1,#c0,#0a,#03,#5f
+        db #0a,#03,#57,#b7,#ed,#52,#c9,#01
+        db #b5,#0e
+
+        end

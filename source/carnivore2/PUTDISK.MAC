@@ -1,0 +1,201 @@
+        .z80
+
+doscall:                equ     0005h
+
+sectors_per_chunk:      equ     90
+
+start_100:
+        ld      sp,(6)
+        ld      de,s_intro
+        ld      hl,s_intro_size
+        call    write_to_stdout
+        ld      de,s_enter_source
+        ld      hl,s_enter_source_size
+        call    write_to_stdout
+
+        ld      de,buffer128
+        ld      hl,128
+        call    read_from_stdin
+        push    hl
+
+ask_destination_floppy:
+        ld      de,s_enter_destination
+        ld      hl,s_enter_destination_size
+        call    write_to_stdout
+        ld      c,#1            ; Console Input
+        call    doscall
+        and     #df
+        sub     'A'
+        ld      b,a
+        ld      a,(#fb21)
+        dec     a
+        cp      b
+        jr      c,floppy_check_ok
+        push    bc
+        ld      de,s_warning_no_floppy
+        ld      hl,s_warning_no_floppy_size
+        call    write_to_stdout
+        ld      c,#1            ; Console Input
+        call    doscall
+        pop     bc
+        and     #df
+        cp      'A'+9
+        jr      z,floppy_check_ok
+        jr      ask_destination_floppy
+floppy_check_ok:
+        ld      a,b
+        pop     hl
+        push    af
+        ld      de,buffer128
+
+loop_input_file_name:
+        ld      a,h
+        or      l
+        jr      z,file_name_done
+        ld      a,(de)
+        inc     de
+        dec     hl
+        cp      #d
+        jr      nz,loop_input_file_name
+        dec     de
+        xor     a               ; zero-terminate the string
+        ld      (de),a
+file_name_done:
+        ld      c,#43           ; Open File Handle
+        ld      de,buffer128
+        xor     a
+        call    doscall
+        jp      nz,exit_with_error
+        ld      a,b
+        ld      (v_file_handle),a
+        ld      c,#1a           ; Set disk transfer address
+        ld      de,data_buffer
+        call    doscall
+
+        pop     af
+        ld      l,a
+        ld      h,sectors_per_chunk
+loop_write_disks:
+        ld      de,0
+        ld      a,1440 / sectors_per_chunk
+loop_write_sectors:
+        push    af
+        push    hl
+        push    de
+        ld      a,(v_file_handle)
+        ld      b,a
+        ld      c,#48           ; Read from file handle
+        ld      de,data_buffer
+        ld      hl,sectors_per_chunk * 512
+        call    doscall
+        cp      199             ; End Of File
+        jr      z,end_of_file
+        or      a
+        jr      nz,exit_with_error
+        pop     de
+        pop     hl
+        pop     af
+        push    af
+        push    hl
+        push    de
+        cp      1440 / sectors_per_chunk
+        jr      nz,continue_this_disk
+;ask_next_disk:
+        ld      de,s_insert_disk
+        ld      hl,s_insert_disk_size
+        call    write_to_stdout
+        ld      c,#8            ; Console input without echo
+        call    doscall
+continue_this_disk:
+        pop     de
+        pop     hl
+        push    hl
+        push    de
+        ld      c,#30           ; Absolute sector write
+        call    doscall
+        jr      nz,exit_with_error
+        pop     de
+        ld      hl,sectors_per_chunk
+        add     hl,de
+        ex      de,hl
+        pop     hl
+        pop     af
+        dec     a
+        jr      nz,loop_write_sectors
+        jp      loop_write_disks
+end_of_file:
+        pop     de
+        pop     hl
+        pop     af
+        ld      a,(v_file_handle)
+        ld      b,a
+        ld      c,#45           ; Close file handle
+        call    doscall
+        jr      nz,exit_with_error
+        xor     a
+
+exit_with_error:
+        ld      b,a             ; Error code
+        ld      c,#62           ; Terminate with error code
+        jp      doscall
+
+read_from_stdin:
+        ld      c,#48           ; Read from file handle
+        ld      b,#0            ; STDIN
+        call    doscall
+        ret     z
+        jp      exit_with_error
+
+write_to_stdout:
+        ld      c,#49           ; Write to file handle
+        ld      b,#1            ; STDOUT
+        call    doscall
+        ret     z
+        jp      exit_with_error
+
+s_intro:
+        db "Putdisk v 2.0 - 1993 by Michel Shuqair",10,13,10
+s_intro_size: equ $ - s_intro
+
+s_enter_source:
+        db "Enter drive",#5c,"path",#5c,"filename: "
+s_enter_source_size: equ $ - s_enter_source
+
+s_enter_destination:
+        db 13,"Specify the destination floppy drive (A-H) "
+s_enter_destination_size: equ $ - s_enter_destination
+
+s_insert_disk:
+        db 10,13,10,"Insert floppy disk and press any key..."
+s_insert_disk_size: equ $ - s_insert_disk
+
+s_warning_no_floppy:
+        db 13,10,"The specified drive isn't a floppy disk drive!"
+        db 13,10,"Do you want continue? (Y/N) "
+s_warning_no_floppy_size: equ $ - s_warning_no_floppy
+
+v_file_handle:
+        db #00
+
+buffer128:
+        db #cd,#fd,#02,#01,#22,#03,#dd,#e5
+        db #e3,#cd,#f3,#02,#e1,#c0,#0a,#03
+        db #5f,#0a,#03,#57,#b7,#ed,#52,#c9 ;...W..R.
+        db #01,#b5,#0e,#d9,#01,#88,#03,#21
+        db #00,#00,#e5,#dd,#e1,#0a,#03,#5f
+        db #0a,#03,#57,#dd,#19,#0a,#03,#5f ;..W.....
+        db #0a,#03,#57,#ed,#5a,#d9,#0b,#78 ;..W.Z..x
+        db #b1,#d9,#20,#e9,#c9,#5f,#bb,#6b ;.......k
+        db #1a,#cd,#32,#03,#1a,#b7,#c8,#1b
+        db #cd,#50,#03,#18,#f7,#11,#5e,#da ;.P......
+        db #47,#04,#05,#c8,#1a,#1b,#b7,#20 ;G.......
+        db #fb,#18,#f7,#1a,#b7,#c8,#cd,#50 ;.......P
+        db #03,#13,#18,#f7,#3e,#0d,#cd,#50 ;.......P
+        db #03,#3e,#0a,#e5,#d5,#c5,#5f,#0e
+        db #02,#cd,#05,#00,#c1,#d1,#e1,#c9
+        db #53,#48,#45,#4c,#4c,#00,#41,#3a ;SHELL.A.
+data_buffer:
+        db #5c,#fd,#02,#01,#22,#03,#dd,#e5
+        db #e3,#cd,#f3,#02,#e1,#c0,#0a,#03
+        db #5f,#0a,#03,#57,#b7,#ed,#52,#c9 ;...W..R.
+        db #01,#b5,#0e
