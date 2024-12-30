@@ -45,8 +45,8 @@ typedef struct {
 
 
 typedef struct {
-	byte lunCount;
-	char deviceName[MAX_INFO_LENGTH];
+    byte lunCount;
+    char deviceName[MAX_INFO_LENGTH];
 } deviceInfo;
 
 #define DRIVE_STATUS_ASSIGNED_TO_DEVICE 1
@@ -68,14 +68,14 @@ typedef struct {
 #define FLOPPY_DISK_LUN (1 << 2)
 
 typedef struct {
-	byte mediumType;
-	uint sectorSize;
-	ulong sectorCount;
-	byte flags;
-	uint cylinders;
-	byte heads;
-	byte sectorsPerTrack;
-	bool suitableForPartitioning;
+    byte mediumType;
+    uint sectorSize;
+    ulong sectorCount;
+    byte flags;
+    uint cylinders;
+    byte heads;
+    byte sectorsPerTrack;
+    bool suitableForPartitioning;
 } lunInfo;
 
 typedef struct {
@@ -85,13 +85,13 @@ typedef struct {
     uint fatEntryValue;
     byte sectorsPerCluster;
     struct {
-		unsigned isFat12:1;
-		unsigned isFat16:1;
-		unsigned isOddEntry:1;
-		unsigned isLastClusterOfFile:1;
-		unsigned isUnusedCluster:1;
-		unsigned unused:3;
-	} flags;
+        unsigned isFat12:1;
+        unsigned isFat16:1;
+        unsigned isOddEntry:1;
+        unsigned isLastClusterOfFile:1;
+        unsigned isUnusedCluster:1;
+        unsigned unused:3;
+    } flags;
     byte reserved[4];
 } clusterInfo;
 

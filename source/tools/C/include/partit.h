@@ -38,78 +38,78 @@
 #define FAT_COPIES 2
 
 typedef struct {
-	byte primaryIndex;
-	byte extendedIndex;
-	byte partitionType;
+    byte primaryIndex;
+    byte extendedIndex;
+    byte partitionType;
     byte status;
-	ulong sizeInK;
-	uint alignmentPaddingInSectors;
+    ulong sizeInK;
+    uint alignmentPaddingInSectors;
 } partitionInfo;
 
 typedef struct {
-	ulong totalSectors;
-	ulong dataSectors;
-	uint clusterCount;
-	uint sectorsPerFat;
-	byte sectorsPerCluster;
-	byte sectorsPerRootDirectory;
-	bool isFat16;
+    ulong totalSectors;
+    ulong dataSectors;
+    uint clusterCount;
+    uint sectorsPerFat;
+    byte sectorsPerCluster;
+    byte sectorsPerRootDirectory;
+    bool isFat16;
 } dosFilesystemParameters;
 
 typedef struct {
-	byte jumpInstruction[3];
-	char oemNameString[8];
-	uint sectorSize;
-	byte sectorsPerCluster;
-	uint reservedSectors;
-	byte numberOfFats;
-	uint rootDirectoryEntries;
-	uint smallSectorCount;
-	byte mediaId;
-	uint sectorsPerFat;
-	uint sectorsPerTrack;
-	uint numberOfHeads;
-	union {
-		struct {
-			ulong hiddenSectors;
-			ulong bigSectorCount;
-			byte physicalDriveNum;
-			byte reserved;
-			byte extendedBlockSignature;
-			ulong serialNumber;
-			char volumeLabelString[11];
-			char fatTypeString[8];
-		} standard;
-		struct {
-			uint hiddenSectors;
-			byte z80JumpInstruction[2];
-			char volIdString[6];
-			byte dirtyDiskFlag;
-			ulong serialNumber;
-			char volumeLabelString[11];
-			char fatTypeString[8];
-			byte z80BootCode;
-		} DOS220;
-	} params;
-   	byte emptySpace[447];
-	uint mbrSignature;
+    byte jumpInstruction[3];
+    char oemNameString[8];
+    uint sectorSize;
+    byte sectorsPerCluster;
+    uint reservedSectors;
+    byte numberOfFats;
+    uint rootDirectoryEntries;
+    uint smallSectorCount;
+    byte mediaId;
+    uint sectorsPerFat;
+    uint sectorsPerTrack;
+    uint numberOfHeads;
+    union {
+        struct {
+            ulong hiddenSectors;
+            ulong bigSectorCount;
+            byte physicalDriveNum;
+            byte reserved;
+            byte extendedBlockSignature;
+            ulong serialNumber;
+            char volumeLabelString[11];
+            char fatTypeString[8];
+        } standard;
+        struct {
+            uint hiddenSectors;
+            byte z80JumpInstruction[2];
+            char volIdString[6];
+            byte dirtyDiskFlag;
+            ulong serialNumber;
+            char volumeLabelString[11];
+            char fatTypeString[8];
+            byte z80BootCode;
+        } DOS220;
+    } params;
+       byte emptySpace[447];
+    uint mbrSignature;
 } fatBootSector;
 
 typedef struct {
-	byte status;
-	byte chsOfFirstSector[3];
-	byte partitionType;
-	byte chsOfLastSector[3];
-	ulong firstAbsoluteSector;
-	ulong sectorCount;
+    byte status;
+    byte chsOfFirstSector[3];
+    byte partitionType;
+    byte chsOfLastSector[3];
+    ulong firstAbsoluteSector;
+    ulong sectorCount;
 } partitionTableEntry;
 
 typedef struct {
     byte jumpInstruction[3];
-	char oemNameString[8];
-	byte emptySpace[435];
-	partitionTableEntry primaryPartitions[4];
-	uint mbrSignature;
+    char oemNameString[8];
+    byte emptySpace[435];
+    partitionTableEntry primaryPartitions[4];
+    uint mbrSignature;
 } masterBootRecord;
 
 

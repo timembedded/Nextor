@@ -1,21 +1,21 @@
-	;--- crt0.asm for MSX-DOS - by Konami Man, 11/2004
-	;    Advanced version: allows "int main(char** argv, int argc)",
-	;    the returned value will be passed to _TERM on DOS 2,
-	;    argv is always 0x100 (the startup code memory is recycled).
+        ;--- crt0.asm for MSX-DOS - by Konami Man, 11/2004
+        ;    Advanced version: allows "int main(char** argv, int argc)",
+        ;    the returned value will be passed to _TERM on DOS 2,
+        ;    argv is always 0x100 (the startup code memory is recycled).
         ;    Overhead: 112 bytes.
-	;
+        ;
         ;    Compile programs with --code-loc 0x180 --data-loc X
         ;    X=0  -> global vars will be placed immediately after code
         ;    X!=0 -> global vars will be placed at address X
         ;            (make sure that X>0x100+code size)
 
-	.globl	_main
+        .globl	_main
 
         .globl  l__INITIALIZER
         .globl  s__INITIALIZED
         .globl  s__INITIALIZER
 
-	.area _HEADER (ABS)
+        .area _HEADER (ABS)
 
         .org    0x0100  ;MSX-DOS .COM programs start address
 
@@ -118,10 +118,10 @@ cont:   ld      hl,#0x100
         ld      e,c      ;Pass info as parameters to "main"
 
         ;--- Step 3: Call the "main" function
-	push de
-	ld de,#_HEAP_start
-	ld (_heap_top),de
-	pop de
+        push de
+        ld de,#_HEAP_start
+        ld (_heap_top),de
+        pop de
 
         ; use prototype: int main(char** argv, int argc)
         call    _main
@@ -139,12 +139,12 @@ cont:   ld      hl,#0x100
 
         ;--- Program code and data (global vars) start here
 
-	;* Place data after program code, and data init code after data
+        ;* Place data after program code, and data init code after data
 
-	.area	_CODE
-	.area	_DATA
+        .area	_CODE
+        .area	_DATA
 _heap_top::
-	.dw 0
+        .dw 0
 
         .area   _GSINIT
 gsinit::
@@ -159,11 +159,11 @@ gsinext:
         .area   _GSFINAL
         ret
 
-	;* These doesn't seem to be necessary... (?)
+        ;* These doesn't seem to be necessary... (?)
 
         ;.area  _OVERLAY
-	;.area	_HOME
+        ;.area	_HOME
         ;.area  _BSS
-	.area	_HEAP
+        .area	_HEAP
 
 _HEAP_start::
