@@ -1,36 +1,17 @@
-        ; Device-based driver for the Carnivore2 CompactFlash (which is based on Sunrise-IDE)
-        ;
-        ; Changes compared to original Sunrise-IDE driver:
-        ;   - Removed slave device code, CompactFlash will always be master-only
-        ;   - Added prove-of-concept for disk drive emulation
-        ;       - Uses last 1440 sectors of the disk to emulate a disk as 2nd LUN
-        ;       - In DOS1 mode ('1' pressed) or when CTRL is pressed at startup,
-        ;         only the emulated disk is provided (boot from emulated disk)
-        ;       - Emulated disk can be formatted in fdisk
-        ;
-        ; Ideas for future:
-        ;    - Only enable disk emulation when enabled, use last sector of disk
-        ;      for configuration
-        ;    - MSX-DOS tool to enable/disable emulation, the tool can check if
-        ;      there is room after the partition for this (now it is assumed)
-        ;    - Add possibility to emulate disk directly out of file. Tool must
-        ;      provide sector mapping in last sectors of disk, then reboot.
-        ;      Emulation this way only the first reboot so that sector mapping
-        ;      can be trusted
-        ;    - Possibility to 'mount' more than one disk the above way, possible
-        ;      to swap disks by pressing CODE+<num> for example
-        ;
-        ; Version 0.1.0
-        ; By Tim Brugman
-        ; By Konamiman
-        ; By Piter Punk
-        ; By FRS
+	; Device-based driver for the sunrise IDE interface for Nextor
+	;
+    ; Version 0.1.7
+    ; By Konamiman
+	; By Piter Punk
+	; By FRS
 
-        org     4000h
-        ds      4100h-$,0               ; DRV_START must be at 4100h
+	;MASTER_ONLY constant must be defined externally to generate the master-only variant.
+
+	org	4000h
+	ds	4100h-$,0		; DRV_START must be at 4100h
 DRV_START:
 
-        .RELAB
+	.RELAB
 
 TESTADD equ     0F3F5h
 
@@ -47,25 +28,25 @@ TEMP_WORK equ 0C400h
 ;   0 for drive-based
 ;   1 for device-based
 
-DRV_TYPE        equ     1
+DRV_TYPE	equ	1
 
 ;Hot-plug devices support (device-based drivers only):
 ;   0 for no hot-plug support
 ;   1 for hot-plug support
 
-DRV_HOTPLUG     equ     1
+DRV_HOTPLUG	equ	0
 
-DEBUG           equ     0       ;Set to 1 for debugging, 0 to normal operation
+DEBUG	equ	0	;Set to 1 for debugging, 0 to normal operation
 
 ;Driver version
 
-VER_MAIN        equ     0
-VER_SEC         equ     1
-VER_REV         equ     0
+VER_MAIN	equ	0
+VER_SEC		equ	1
+VER_REV		equ	7
 
 
 ;Miscellaneous configuration
-PIOMODE3 equ 0FFFFh     ; Configure devices to work on PIO MODE 3
+PIOMODE3 equ 0FFFFh	; Configure devices to work on PIO MODE 3
 
 
 ;This is a very barebones driver. It has important limitations:
@@ -262,32 +243,31 @@ name equ field_pointer
 field_pointer defl field_pointer+size
 endm
 
-struct_start DSKEMU     ; Contains information about the disk emulator
-field ENABLE,1          ; Disk emulation enabled
-field STARTSEC,4        ; Start sector for emulated disk
-field TEMPBUF,4         ; Current sector for emulated disk
-struct_end
 
-struct_start WRKAREA
-; Device info
+struct_start DEVINFO		; Contains information about a specific device
 field t321D,1
 field t7654,1
-field SECTSIZE,2        ; Sector size for this device
-field pBASEWRK,2        ; Cache pointer to go back to the base of the work area 
-; Other
-field BLKLEN,2          ; Size of the block to be copied. ***Must be
-                        ;   the first element of the WRKAREA
-field PCTBUFF,16        ; Buffer to send ATAPI PACKET commands
-field LDIRHLPR,8        ; LDIR data transter helper routine. This is
-                        ;   in RAM to speed up the R800 copy a lot.
-field TEMP,1
-field DSKEMU,(:DSKEMU._SIZE)   ; Offset to the MASTER data structure
+;CHSRESERVED	ds 2	; Disabled to save space. 2 bytes won't be enough anyway
+field SECTSIZE,2	; Sector size for this device
+field pBASEWRK,2	; Cache pointer to go back to the base of the work area 
+struct_end
+
+
+struct_start WRKAREA
+field BLKLEN,2	; Size of the block to be copied. ***Must be
+				; \the first element of the WRKAREA
+field PCTBUFF,16	; Buffer to send ATAPI PACKET commands
+field LDIRHLPR,8	; LDIR data transter helper routine. This is
+					; in RAM to speed up the R800 copy a lot.
+field MASTER,(:DEVINFO._SIZE)	; Offset to the MASTER data structure
+field SLAVE,(:DEVINFO._SIZE); Offset to the SLAVE data structure
+									  ; \*** It must follow the MASTER DEVINFO
 struct_end
 
 
 struct_start WRKTEMP
-field pDEVMSG,2 ; Pointer to the text "Master:" or "Slave:"
-field BUFFER,512        ; Buffer for the IDENTIFY info
+field pDEVMSG,2	; Pointer to the text "Master:" or "Slave:"
+field BUFFER,512	; Buffer for the IDENTIFY info
 struct_end
 
 ; ATAPI/SCSI packet structures
@@ -422,17 +402,16 @@ SING_DBL  equ     7420h ;"1-Single side / 2-Double side"
 ;
 ; Driver signature
 ;
-        db      "NEXTOR_DRIVER",0
+	db	"NEXTOR_DRIVER",0
 
 ; Driver flags:
 ;    bit 0: 0 for drive-based, 1 for device-based
 ;    bit 1: 1 for hot-plug devices supported (device-based drivers only)
-;    bit 2: 1 if the driver implements the DRV_CONFIG routine
 
-        db DRV_TYPE + 2 * DRV_HOTPLUG + 4
+	db 1+(2*DRV_HOTPLUG)
 
 ;Reserved byte
-        db      0
+	db	0
 
 ;Driver name
 
@@ -453,15 +432,14 @@ DRV_NAME:
         jp      DRV_DIRECT2
         jp      DRV_DIRECT3
         jp      DRV_DIRECT4
-        jp      DRV_CONFIG
 
-        ds      12
+	ds	15
 
-        jp      DEV_RW
-        jp      DEV_INFO
-        jp      DEV_STATUS
-        jp      LUN_INFO
-        jp      DEV_FORMAT
+	jp	DEV_RW
+	jp	DEV_INFO
+	jp	DEV_STATUS
+	jp	LUN_INFO
+	jp	DEV_FORMAT
         jp      DEV_CMD
 
 
@@ -507,22 +485,16 @@ DRV_TIMI:
 ;     get two allocated drives.)
 
 DRV_INIT:
-        or      a               ; Is this the 1st call? 
-        jr      nz,.call2       ; No, skip
-; 1st call:
-
-        ld      hl,WRKAREA._SIZE        ; size of work area
-        or      a                       ; Clear Cy
-        ret
+	ld	hl,WRKAREA._SIZE	; size of work area
+	or	a		; Clear Cy
+	ret	z
 
 ; 2nd call: 
-.call2:
-
-        ld      a,(CHGCPU)
-        cp      #C3             ; IS CHGCPU present?
-        jr      nz,.call2ini
-        call    GETCPU
-        push    af              ; Save the current CPU
+	ld	a,(CHGCPU)
+	cp	#C3		; IS CHGCPU present?
+	jr	nz,.call2ini
+	call	GETCPU
+	push	af		; Save the current CPU
         ld      a,#82
         call    CHGCPU          ; Enable the turbo
 .call2ini:
@@ -531,25 +503,18 @@ DRV_INIT:
         ld      de,INFO_S
         call    PRINT
 
-        xor     a                       ; Request the WorkArea base pointer
-        call    MY_GWORK
-        call    INIWORK                 ; Initialize the work-area
-        call    IDE_ON
+	xor	a			; Request the WorkArea base pointer
+	call	MY_GWORK
+	call	INIWORK			; Initialize the work-area
+	call	IDE_ON
 
-        ; ***Workaround for Nextor not passing the status of the CTRL
-        ; and SHIFT keys at the moment of the beep to the DRV_CONFIG
-        ; and DRV_INIT functions 
-        ld      a,6
-        call    SNSMAT
-        ld      (IX+WRKAREA.TEMP),a     ; TEMP = KBD-row6
-
-.init:  ld      (ix+WRKAREA.t321D),#FE   ; error: No master detected yet
-        ld      de,INIT_S               ; Print "Initializing: "
-        call    PRINT
-        ld      a,M_DEV                 ; Select SLAVE
-        call    WAIT_BSY                ; Is the it alive?
-        jr      c,.reset                ; No, reset everyone
-        xor     a                       ; select MASTER
+.init:	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),#FE	; error: No master detected yet
+	ld	de,INIT_S		; Print "Initializing: "
+	call	PRINT
+	ld	a,M_DEV			; Select SLAVE
+	call	WAIT_BSY		; Is the it alive?
+	jr	c,.reset		; No, reset everyone
+	xor	a			; select MASTER
         call    SELDEV
         call    WAIT_BSY                ; Is the it alive?
         jr      nc,.diag                ; Yes, skip
@@ -562,115 +527,132 @@ DRV_INIT:
         ld      a,ATACMD.DEVDIAG        ; Both drives will execute diagnostics
         ld      (IDE_CMD),a
         call    WAIT_RST                ; Wait for the diagnostics to end
-        ld      a,(INTFLG)
-        cp      3                       ; CTRL+STOP pressed?
-        jp      z,INIT_ABORTED
-        ld      a,(IDE_STATUS)
-        and     M_ERR                   ; Error bit set?
-        jr      nz,.diagchk             ; on error, skip to diagnostics
-        ld      (ix+WRKAREA.t321D),0     ; Clear undetected master error
+	ld	a,(INTFLG)
+	cp	3			; CTRL+STOP pressed?
+	jp	z,INIT_ABORTED
+	ld	a,(IDE_STATUS)
+	and	M_ERR			; Error bit set?
+	jr	nz,.diagchk		; on error, skip to diagnostics
+	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),0	; Clear undetected master error
 
 .diagchk:
-        ; Check the diagnostics and print the results 
-        call    CHKDIAG
-        push    af
-        ld      de,INIT_S               ; Print "Initializing: "
+	; Check the diagnostics and print the results 
+	call	CHKDIAG
+	push	af
+	ld	de,INIT_S		; Print "Initializing: "
         call    PRINT
-        pop     af
-        ld      de,OK_S
-        call    nc,PRINT
-        ld      de,ERROR_S
-        call    c,PRINT
+	pop	af
+	ld	de,OK_S
+	call	nc,PRINT
+	ld	de,ERROR_S
+	call	c,PRINT
 
-        ; Print 'Master device:'
-        ld      de,MASTER_S
-        ld      (TEMP_WORK+WRKTEMP.pDEVMSG),de
-        call    PRINT
+.chkmaster:
+	ld	de,MASTER_S
+	ld	(TEMP_WORK+WRKTEMP.pDEVMSG),de
+	call	PRINT
 
-        ; Check for DIAGNOSTICS errors
-        ld      a,(ix+WRKAREA.t321D)
-        ld      c,a
-        bit     7,a                     ; Any error detected by DIAGNOSE?
-        jr      z,.detinit              ; No, skip
-        call    DIAGERRPRT              ; Print the diagnostic error
-        ld      (ix+WRKAREA.t321D),0     ; This device isn't available
-        ; Errors 0 and 5 are critical and cannot proceed
-        ld      a,c
-        and     #7F                     ; Crop erro code
-        jr      z,.critical
-        cp      5                       ; Microcontroller error on master?
-        jp      nz,.chkslave            ; No: slave can still be used safely
+	; Check for DIAGNOSTICS errors
+	ld	a,(ix+WRKAREA.MASTER+DEVINFO.t321D)
+	ld	c,a
+	bit	7,a			; Any error detected by DIAGNOSE?
+	jr	z,.detinit		; No, skip
+	call	DIAGERRPRT		; Print the diagnostic error
+	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),0	; This device isn't available
+	; Errors 0 and 5 are critical and cannot proceed
+	ld	a,c
+	and	#7F			; Crop erro code
+	jr	z,.critical
+	cp	5			; Microcontroller error on master?
+	jp	nz,.chkslave		; No: slave can still be used safely
 .critical:
-        jp      DRV_INIT_END            ; Finish DEV_INIT
+	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),0	; No master = no slave
+	jp	DRV_INIT_END		; Finish DEV_INIT
 
 .detinit:
-        call    RESET_ALL.ataonly
-        xor     a                       ; Select MASTER
-        call    DETDEV
-        ld      a,(ix+WRKAREA.t321D)
-        and     3                       ; There can't be a slave without a master
-        jr      z,INIT_MASTERFAIL       ; Finish DEV_INIT
+	ld	a,M_DEV			; Select SLAVE
+	call	SELDEV
+	call	WAIT_RST		; wait until ready
+	jr	nc,.detmaster
+	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),#80	; Slave has an error
+
+.detmaster:
+	call	RESET_ALL.ataonly
+	push	ix
+	ld	de,WRKAREA.MASTER
+	add	ix,de			; Point ix to the MASTER work area
+	xor	a			; Select MASTER
+	call	DETDEV
+	pop	ix
+	ld	a,(ix+WRKAREA.MASTER+DEVINFO.t321D)
+	and	3		; There can't be a slave without a master
+	jr	z,INIT_MASTERFAIL	; Finish DEV_INIT
 
 .chkslave:
-        ; Slave is 'emulated disk'
-        ld      de,SLAVE_S
-        ld      (TEMP_WORK+WRKTEMP.pDEVMSG),de
-        call    PRINT
+	ifndef MASTER_ONLY
 
-        bit     1,(IX+WRKAREA.TEMP)     ; ***Was CTRL pressed on boot?
-        jr      nz,.noctrl              ; No, skip
+	ld	de,SLAVE_S
+	ld	(TEMP_WORK+WRKTEMP.pDEVMSG),de
+	call	PRINT
 
-        ld      de,DSKEMU_EXCL_S        ; Enable disk emulation in 'exclusive' mode
-        call    PRINT
-        ld      a,2
-        jr      .setdskemu
+	; Check for DIAGNOSTICS errors
+	ld	a,(ix+WRKAREA.SLAVE+DEVINFO.t321D)
+	bit	7,a			; Any error detected by DIAGNOSE?
+	jr	z,.detslave		; No, skip to detection
 
-.noctrl:
-        ld      de,DSKEMU_ON_S          ; Enable disk emulation
-        call    PRINT
-        ld      a,1
-        ;jr      .setdskemu
+	call	DIAGERRPRT		; Print the diagnostic error
+	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),0	; This device isn't available
+	jp	DRV_INIT_END
 
-.setdskemu:                             ; Set the disk emulation mode
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.ENABLE),a
+.detslave:
+	push	ix
+	ld	de,WRKAREA.SLAVE+DEVINFO.BASE
+	add	ix,de			; Point ix to the SLAVE work area
+	ld	a,M_DEV			; Select SLAVE
+	call	DETDEV
+	pop	ix
 
-        ; Reset all devices to finish
+	endif
+
+	; Reset all devices to finish
 END_DETECT:
-        call    RESET_ALL
+	call	RESET_ALL
 
-        ;--- End of the initialization procedure
+	;--- End of the initialization procedure
 DRV_INIT_END:
-        call    IDE_OFF
-        call    INICHKSTOP
-        ld      de,CRLF_S       ; Skip a line for the next driver
-        call    PRINT
-if DEBUG
-        call    WAITKEY
-endif
+	call	IDE_OFF
+	call	INICHKSTOP
+	ld	de,CRLF_S	; Skip a line for the next driver
+	call	PRINT
 
-        ; ***Workaround for a bug in Nextor that causes it to freeze if
-        ; CTRL+STOP was pressed on boot
-        call    CLRCTRLSTOP
+	; ***Workaround for a bug in Nextor that causes it to freeze if
+	; CTRL+STOP was pressed on boot
+	ld	a,(INTFLG)
+	cp	3		; Is CTRL+STOP still signaled?
+	jr	nz,.restCPU	; no, skip
+	xor	a
+	ld	(INTFLG),a	; Clear CTRL+STOP otherwise Nextor will freeze
 
-        ; Restore the CPU if necessary
-        ld      a,(CHGCPU)
-        cp      #C3             ; IS CHGCPU present?
-        ret     nz
-        pop     af
-        or      #80
-        jp      CHGCPU
+.restCPU:	; Restore the CPU if necessary
+	ld	a,(CHGCPU)
+	cp	#C3		; IS CHGCPU present?
+	ret	nz
+	pop	af
+	or	#80
+	jp	CHGCPU
 
 
 INIT_ABORTED:
-        ld      de,ABORTED_S            ; Print "<aborted>"
-        jr      INIT_MASTERFAIL.end
+	ld	de,ABORTED_S		; Print "<aborted>"
+	jr	INIT_MASTERFAIL.end
 
 INIT_MASTERFAIL:
-        ld      de,DIAGS_S.nomaster     ; Print "failed">
-        call    PRINT
-.end:   ld      (ix+WRKAREA.t321D),0
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.ENABLE),0
-        jr      DRV_INIT_END
+	ld	de,DIAGS_S.nomaster	; Print "failed">
+	call	PRINT
+.end:	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),0
+	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),0
+	jr	DRV_INIT_END
+
 
 
 
@@ -694,17 +676,17 @@ DETDEV:
         call    DISDEVINT               ; Disable interrupts
         jp      c,.nodev
 
-        ld      a,'.'                   ; Print the FIRST dot
-        call    CHPUT
-        ;--- Get the device type 
-        call    GETDEVTYPE              ; Get the device type
-        ei
-        ld      (ix+WRKAREA.t321D),a
-        jp      c,.nodev
-        cp      #FF
-        jp      z,.unknown
+	ld      a,'.'			; Print the FIRST dot
+	call    CHPUT
+	;--- Get the device type 
+	call	GETDEVTYPE		; Get the device type
+	ei
+	ld	(ix+DEVINFO.t321D),a
+	jp	c,.nodev
+	cp	#FF
+	jp	z,.unknown
 
-        ;---Configure the PIO transfer mode
+	;---Configure the PIO transfer mode
  IFDEF PIOMODE3
         ld      a,3                     ; Set transfer mode
         ld      (IDE_FEAT),a
@@ -719,34 +701,32 @@ DETDEV:
         jr      c,.unsupported          ; No PIO3? This device is too old
  ENDIF
 
-        ;--- Get the name of the device 
-        ;(IDENTIFY device data on TEMP_WORK+WRKTEMP.BUFFER)
+	;--- Get the name of the device 
+	;(IDENTIFY device data on TEMP_WORK+WRKTEMP.BUFFER)
 .getinfo:
-        ld      de,(TEMP_WORK+WRKTEMP.pDEVMSG)
-        call    PRINT
+	ld	de,(TEMP_WORK+WRKTEMP.pDEVMSG)
+	call	PRINT
 
-        ;Print the device name
-        ld      de,NAMEPREFIX_S
-        call    PRINT
-        ld      hl,TEMP_WORK+WRKTEMP.BUFFER+27*2
-        ld      b,20
-        call    .prtword
+	;Print the device name.
+	ld	hl,TEMP_WORK+WRKTEMP.BUFFER+27*2
+	ld	b,20
+	call	.prtword
 
-        ; Print the firmware version
-        ld      hl,TEMP_WORK+WRKTEMP.BUFFER+23*2
-        ld      b,4
-        call    .prtword
+	; Print the firmware version
+	ld	hl,TEMP_WORK+WRKTEMP.BUFFER+23*2
+	ld	b,4
+	call	.prtword
 
-        ; Print the device characteristics
-        ld      de,DETECT_S.oparenthesis
-        call    PRINT
-        ld      a,(ix+WRKAREA.t321D)
-        and     3                       ; Crop devtype
-        ld      de,DETECT_S.chs
-        dec     a
-        jr      z,.printdevtype
-        ld      de,DETECT_S.lba
-        dec     a
+	; Print the device characteristics
+	ld	de,DETECT_S.oparenthesis
+	call	PRINT
+	ld	a,(ix+DEVINFO.t321D)
+	and	3			; Crop devtype
+	ld	de,DETECT_S.chs
+	dec	a
+	jr	z,.printdevtype
+	ld	de,DETECT_S.lba
+	dec	a
         jr      z,.printdevtype
         ld      de,DETECT_S.atapi
 .printdevtype:
@@ -771,19 +751,19 @@ DETDEV:
         inc     hl
         call    CHPUT
         ld      a,c
-        call    CHPUT
-        djnz    .prtword
-        ret
+	call	CHPUT
+	djnz	.prtword
+	ret
 
-        ;--- Unknown device
+	;--- Unknown device
 .unknown:
-        ld      (ix+WRKAREA.t321D),a
-        ld      de,DETECT_S.unknown
-        call    PRINT
-        ld      a,h
-        call    PRINTHEXBYTE
-        ld      a,l
-        call    PRINTHEXBYTE
+	ld	(ix+DEVINFO.t321D),a
+	ld	de,DETECT_S.unknown
+	call	PRINT
+	ld	a,h
+	call	PRINTHEXBYTE
+	ld	a,l
+	call	PRINTHEXBYTE
         ld      a,'h'
         call    CHPUT
         ld      de,CRLF_S
@@ -794,18 +774,18 @@ DETDEV:
         ld      de,DETECT_S.unsupported
         jr      .nodevreason
 
-        ;--- No device was found
+	;--- No device was found
 .nodev:
-        ld      de,NODEVS_S
+	ld	de,NODEVS_S
 
-        ;--- Prints the reason why there will be no device reported here
+	;--- Prints the reason why there will be no device reported here
 .nodevreason:
-        ld      (ix+WRKAREA.t321D),0    
-        push    de
-        ld      de,(TEMP_WORK+WRKTEMP.pDEVMSG)
-        call    PRINT                   ; Clear previous label message
-        pop     de
-        jp      PRINT
+	ld	(ix+DEVINFO.t321D),0	
+	push	de
+	ld	de,(TEMP_WORK+WRKTEMP.pDEVMSG)
+	call	PRINT			; Clear previous label message
+	pop	de
+	jp	PRINT
 
         ;--- Dectection aborted by the user
 .aborted:
@@ -1017,130 +997,7 @@ DRV_DIRECT1:
 DRV_DIRECT2:
 DRV_DIRECT3:
 DRV_DIRECT4:
-        ret
-
-;-----------------------------------------------------------------------------
-;
-; Get driver configuration 
-; (bit 2 of driver flags must be set if this routine is implemented)
-;
-; Input:
-;   A = Configuration index
-;   BC, DE, HL = Depends on the configuration
-;
-; Output:
-;   A = 0: Ok
-;       1: Configuration not available for the supplied index
-;   BC, DE, HL = Depends on the configuration
-;
-; * Get number of drives at boot time (for device-based drivers only):
-;   Input:
-;     A = 1
-;     B = 0 for DOS 2 mode, 1 for DOS 1 mode
-;   Output:
-;     B = number of drives
-;
-; * Get default configuration for drive
-;   Input:
-;     A = 2
-;     B = 0 for DOS 2 mode, 1 for DOS 1 mode
-;     C = Relative drive number at boot time (0~n)
-;   Output:
-;     B = Device index (1~7)
-;     C = LUN index
-;
-;
-; Note: The boot sequence is a bit unconventional. First, the system boots
-; in DOS2 mode, and calls DRV_CONFIG with A=1, if CTRL wasn't pressed. If
-; CTRL was pressed, it assumes 1 drive per interface without that call to
-; DRV_CONFIG.
-; After all devices are configured, the system calls DRV_CONFIG with A=2
-; just before it loads the NEXTOR.SYS file
-; At this point, it checks if the boot sector is DOS1, and also checks
-; if the "1" key is pressed. In either case, it will now boot the DOS1
-; kernel from the ROM, so this kernel calls again DRV_CONFIG with A=1 and
-; a bit later with A=2.
-
-
-; Note-2: I opened two bug reports related to the DRV_CONFIG function
-; https://github.com/Konamiman/Nextor/issues/12
-; https://github.com/Konamiman/Nextor/issues/15
-
-
-DRV_CONFIG:
-IF DEBUG
-        call    DRV_CONF2
-        jp      WAITKEY
-DRV_CONF2:
-        push    af
-        ld      a,'C'           ; DRV_CONFIG debug ID
-        call    PRTCHAR
-        pop     af
-        push    af
-        add     '0'             ; Config parameter 
-        call    PRTCHAR
-        ld      a,b             ; DOS mode 
-        add     '0'
-        call    PRTCHAR
-        pop     af
-ENDIF
-        cp      1
-        jr      nz,.tryC2
-
-        ; Config-1: Get number of drives at boot time
-        ; ***This function is called with the BIOS still present
-        ; on the frame-0
-
-        djnz    .twoDrives      ; Always request 2 drives for DOS2 mode
-                                ; it will be ignored if CTRL is pressed
-
-.C1dos1:; DOS1 mode is only executed way after DOS2 mode
-        ; Use 1 drive in DOS1 mode
-;.oneDrive:
-        call    MY_GWORK        ; IX=Work area pointer
-
-        ; If disk emulator enabled, use it as primary drive
-        ld      a,(IX+WRKAREA.DSKEMU+DSKEMU.ENABLE)
-        cp      1
-        jr      nz,.c1d1
-        inc     a
-        ld      (IX+WRKAREA.DSKEMU+DSKEMU.ENABLE),a
-.c1d1:
-        xor     a
-        ld      b,1
-        ret
-
-.twoDrives:
-        xor     a
-        ld      b,2
-        ret
-
-;----------------
-.tryC2: cp      2
-        jr      nz,.notavail
-        ; Config-2: Get default configuration for drive
-        ; ***This function is called without the BIOS presence
-        ; on the frame-0
-IF DEBUG
-        push    af
-        ld      a,c
-        add     '0'
-        call    PRTCHAR
-        pop     af
-ENDIF
-        ; Workaround for the Nextor CTRL+STOP freeze bug on boot
-        call    CLRCTRLSTOP
-
-        ld      b,c
-        inc     b       ; DRV x = DEV x+1 
-        ld      c,1     ; LUN=1
-        xor     a
-        ret
-
-;----------------
-.notavail:
-        ld      a,1
-        ret
+	ret
 
 
 ;=====
@@ -1172,103 +1029,14 @@ ENDIF
 ;          B = Number of sectors actually read/written
 
 DEV_RW:
-        push    af              ; Save A + Cy
-        call    MY_GWORK
-        ld      a,(IX+WRKAREA.DSKEMU+DSKEMU.ENABLE)     ; Check if emu enabled (1 = enabled as 2nd disk, 2 = enabled as first disk)
-        or      a
-        jp      z,DEV_RW_NOEMU  ; not enabled
-        cp      2
-        jr      z,.chklun       ; as first drive
-        pop     af
-        push    af
-        cp      a,2             ; check 2nd drive
-        jr      nz,DEV_RW_NOEMU
-.chklun:
-        ld      a,c             ; Check LUN
-        cp      a,1
-        jr      z,DEV_RW_EMU
-        pop     af              ; Leave with error 'Invalid device or LUN'
-        ld      a,_IDEVL
-        ld      b,0
-        ret
-DEV_RW_EMU:
+	push	af
+	call	MY_GWORK	; ix=Work area pointer for this device
 
-if DEBUG
-        ld      a,'!'
-        call    PRTCHAR
-        pop     af
-        push    af
-        ld      a,'w'
-        jr      c,.write
-        ld      a,'r'
-.write: call    PRTCHAR
-endif
-
-        push    hl              ; Save HL/BC
-        push    bc
-
-        xor     a
-        call    MY_GWORK        ; ix=Base work area pointer
-        ld      l,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+0)
-        ld      h,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+1)
-        ex      de,hl
-        ld      c,(hl)
-        inc     hl
-        ld      b,(hl)
-        inc     hl
-        ex      de,hl
-        add     hl,bc
-        push    af
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+0),l
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+1),h
-
-        ld      l,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+2)
-        ld      h,(ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+3)
-        ex      de,hl
-        ld      c,(hl)
-        inc     hl
-        ld      b,(hl)
-        inc     hl
-        ex      de,hl
-        pop     af
-        adc     hl,bc
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+2),l
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+3),h
-
-if DEBUG
-        ld      a,'#'
-        call    PRTCHAR
-        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+3)
-        call    PRTHEXBYTE
-        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+2)
-        call    PRTHEXBYTE
-        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+1)
-        call    PRTHEXBYTE
-        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.TEMPBUF+0)
-        call    PRTHEXBYTE
-endif
-
-        push    ix
-        pop     hl
-        ld      de,WRKAREA.DSKEMU+DSKEMU.TEMPBUF
-        add     hl,de
-        ex      de,hl
-
-        pop     bc              ; Restore HL/BC
-        pop     hl
-
-        pop     af              ; Restore Carry
-
-        ld      a,1             ; Continue the read/write on device 1, LUN 1
-        ld      c,1
-        push    af
-
-DEV_RW_NOEMU:
-        push    bc
-        ld      b,c             ;b=LUN
-        call    CHECK_DEV_LUN
-        pop     bc
-        jp      c,DEV_RW_NODEV
+	push	bc
+	ld	b,c		;b=LUN
+	call	CHECK_DEV_LUN
+	pop	bc
+	jp	c,DEV_RW_NODEV
 
         dec     a
         jr      z,DEV_RW2
@@ -1286,19 +1054,19 @@ DEV_RW2:
 DEV_RW_NO0SEC:
         ld      iyl,e
         ld      iyh,d
-        ld      a,(iy+3)
-        and     11110000b
-        jp      nz,DEV_RW_NOSEC ;Only 28 bit sector numbers supported
+	ld	a,(iy+3)
+	and	11110000b
+	jp	nz,DEV_RW_NOSEC	;Only 28 bit sector numbers supported
 
-        call    IDE_ON
+	call	IDE_ON
 
-        ld      a,(ix+WRKAREA.t321D)
-        and     3                       ; Crop devtype
-        cp      3                       ; ATAPI?
-        jp      z,DEV_ATAPI_RW
+	ld	a,(ix+DEVINFO.t321D)
+	and	3			; Crop devtype
+	cp	3			; ATAPI?
+	jp	z,DEV_ATAPI_RW
 
 DEV_ATA_RW:
-        ld      a,(iy+3)
+	ld	a,(iy+3)
         or      M_LBA
         or      c               ; Mix with dev# in IDE format
         call    SELDEV          ; IDE_HEAD must be written first,
@@ -1351,27 +1119,27 @@ DEV_ATA_WR:
 
 
 DEV_ATAPI_RW:
-        ld      a,c                     ;Get devnum in IDE format
-        call    SELDEV
+	ld	a,c			;Get devnum in IDE format
+	call	SELDEV
 
-        ; Fill the READ10/WRITE10 packet structure
-        push    de
-        ld      e,(ix+WRKAREA.pBASEWRK)         ; hl=pointer to WorkArea
-        ld      d,(ix+WRKAREA.pBASEWRK+1)
-        ld iyl,e
-        ld iyh,d                                ; iy=WRKAREA pointer
-        pop     de
+	; Fill the READ10/WRITE10 packet structure
+	push	de
+	ld	e,(ix+DEVINFO.pBASEWRK)		; hl=pointer to WorkArea
+	ld	d,(ix+DEVINFO.pBASEWRK+1)
+	ld iyl,e
+ 	ld iyh,d				; iy=WRKAREA pointer
+	pop	de
 
-        ; Set the block size
-        ld      a,(ix+WRKAREA.SECTSIZE)
-        ld      (iy+WRKAREA.BLKLEN),a   
-        ld      a,(ix+WRKAREA.SECTSIZE+1)
-        ld      (iy+WRKAREA.BLKLEN+1),a
+	; Set the block size
+	ld	a,(ix+DEVINFO.SECTSIZE)
+	ld	(iy+WRKAREA.BLKLEN),a	
+	ld	a,(ix+DEVINFO.SECTSIZE+1)
+	ld	(iy+WRKAREA.BLKLEN+1),a
 
-        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT),0
-        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT+1),b
-        ld      a,(de)
-        ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LBA+3),a
+	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT),0
+	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LENGHT+1),b
+	ld	a,(de)
+	ld	(iy+WRKAREA.PCTBUFF+PCTRW10.LBA+3),a
         inc     de
         ld      a,(de)
         ld      (iy+WRKAREA.PCTBUFF+PCTRW10.LBA+2),a
@@ -1423,26 +1191,26 @@ DEV_ATAPI_RD:
         pop hl
         pop bc
 
-        endif
+	endif
 
-        jp      c,DEV_RW_ERR
+	jp	c,DEV_RW_ERR
 
-.init1: ; Set the sector size and number of blocks
-        ; sizes bigger than 512 must be a multiple of 512
-        ld      a,(ix+WRKAREA.SECTSIZE+1)
-        srl     a               ; SECTSIZE=SECTSIZE/512 (the IDE buffer can
-                                ; transfer only 512 bytes per time)
-        ld      de,512          ; block size=512
-        jr      nz,.init2       ; Skip if the boundary check is ok
-        inc     a               ; Keep the block count to at least 1
-        ld      e,(ix+WRKAREA.SECTSIZE)
-        ld      d,(ix+WRKAREA.SECTSIZE+1)
+.init1:	; Set the sector size and number of blocks
+	; sizes bigger than 512 must be a multiple of 512
+	ld	a,(ix+DEVINFO.SECTSIZE+1)
+	srl	a		; SECTSIZE=SECTSIZE/512 (the IDE buffer can
+				; transfer only 512 bytes per time)
+	ld	de,512		; block size=512
+	jr	nz,.init2	; Skip if the boundary check is ok
+	inc	a		; Keep the block count to at least 1
+	ld	e,(ix+DEVINFO.SECTSIZE)
+	ld	d,(ix+DEVINFO.SECTSIZE+1)
 
-.init2: 
-        ld      c,a             ; c=number of 512-byte blocks per sector
+.init2:	
+	ld	c,a		; c=number of 512-byte blocks per sector
 
-        push    bc
-        ld b,d
+	push	bc
+ 	ld b,d
         ld c,e          ; bc=block size
         call    SETLDIRHLPR     ; hl'=Pointer to LDIR helper in RAM
         pop     bc
@@ -1494,26 +1262,26 @@ DEV_ATAPI_WR:
         pop hl
         pop bc
 
-        endif
+	endif
 
-        jp      c,DEV_RW_ERR
+	jp	c,DEV_RW_ERR
 
-.init1: ; Set the sector size and number of blocks
-        ; sizes bigger than 512 must be a multiple of 512
-        ld      a,(ix+WRKAREA.SECTSIZE+1)
-        srl     a               ; SECTSIZE=SECTSIZE/512 (the IDE buffer can
-                                ; transfer only 512 bytes per time)
-        ld      de,512          ; block size=512
-        jr      nz,.init2       ; Skip if the boundary check is ok
-        inc     a               ; Keep the block count to at least 1
-        ld      e,(ix+WRKAREA.SECTSIZE)
-        ld      d,(ix+WRKAREA.SECTSIZE+1)
+.init1:	; Set the sector size and number of blocks
+	; sizes bigger than 512 must be a multiple of 512
+	ld	a,(ix+DEVINFO.SECTSIZE+1)
+	srl	a		; SECTSIZE=SECTSIZE/512 (the IDE buffer can
+				; transfer only 512 bytes per time)
+	ld	de,512		; block size=512
+	jr	nz,.init2	; Skip if the boundary check is ok
+	inc	a		; Keep the block count to at least 1
+	ld	e,(ix+DEVINFO.SECTSIZE)
+	ld	d,(ix+DEVINFO.SECTSIZE+1)
 
-.init2: 
-        ld      c,a             ; c=number of 512-byte blocks per sector
+.init2:	
+	ld	c,a		; c=number of 512-byte blocks per sector
 
-        push    bc
-        ld b,d
+	push	bc
+ 	ld b,d
         ld c,e          ; bc=block size
         call    SETLDIRHLPR     ; hl'=Pointer to LDIR helper in RAM
         pop     bc
@@ -1633,34 +1401,37 @@ DEV_INFO:
         call    MY_GWORK
 
         ld      c,a
-        ld      a,b
-        or      a
-        jr      nz,.strings
+	ld	a,b
+	or	a
+	jr	nz,.strings
 
-        ;--- Obtain basic information
+	;--- Obtain basic information
 
-        ld      a,(ix+WRKAREA.t321D)    ; Get current device type
-        and     3                       ;Device available? 
-        jr      z,.error1
+	ld	a,(ix+DEVINFO.t321D)	; Get current device type
+	and	3			;Device available? 
+	jr	z,.error1
 
-        ld      (hl),1                  ;One single LUN
-        inc     hl
-        ld      (hl),0                  ;Always zero
-        xor     a
-        ret
+	ld	(hl),1			;One single LUN
+	inc	hl
+	ld	(hl),0			;Always zero
+	xor	a
+	ret
 
-        ;--- Obtain string information
-        ; TODO: Different name for emulated disk
-        ; TODO: Check if disk emulation is enabled for 2nd device
+	;--- Obtain string information
 .strings:
-        call    IDE_ON
+	call	IDE_ON
 
-        xor     a
-        call    SELDEV
+	ld	a,c
+	dec	a
+	jr	z,.swcase
+	ld	a,M_DEV
 
-        ld      a,b
-        dec     a                       ; A=1? (Manufacturer name)
-        jr      z,.error2               ; Yes, quit. IDE doesn't have it.
+.swcase:
+	call	SELDEV
+
+	ld	a,b
+	dec	a			; A=1? (Manufacturer name)
+	jr	z,.error2		; Yes, quit. IDE doesn't have it.
 
         dec     a                       ; A=2? (Device name)
         jr      z,.devname
@@ -1745,18 +1516,18 @@ DEV_STRING_GET:
         add     b                       ; a=number of words to be consumed 
         ld      e,a
         ld      d,0
-        ld      hl,256
-        or      a
-        sbc     hl,de
-        ld      h,l                     ; h=number of remaining words
-        ex      (sp),hl                 ; (sp)=number of remaining words
+	ld	hl,256
+	or	a
+	sbc	hl,de
+	ld	h,l			; h=number of remaining words
+	ex	(sp),hl			; (sp)=number of remaining words
 
-        ld      a,(ix+WRKAREA.t321D)
-        and     3
-        cp      3                       ; ATAPI?
-        ld      a,ATACMD.IDENTIFY       ; Send IDENTIFY commad
-        jr      c,.identify
-        ld      a,ATAPICMD.IDENTPACKET  ;Send IDENTIFY PACKET commad
+	ld	a,(ix+DEVINFO.t321D)
+	and	3
+	cp	3			; ATAPI?
+	ld	a,ATACMD.IDENTIFY	; Send IDENTIFY commad
+	jr	c,.identify
+	ld	a,ATAPICMD.IDENTPACKET	;Send IDENTIFY PACKET commad
 .identify:
         call    PIO_CMD
         jr      c,.errorpop
@@ -1863,26 +1634,18 @@ DEV_STRING_DIGEST:
 ; Non removable logical units may return values 0 and 1.
 
 DEV_STATUS:
-if DEBUG
-        push    af
-        ld      a,'$'
-        call    PRTCHAR
-        pop     af
-endif
-        set     0,b     ;So that CHECK_DEV_LUN admits B=0
+	set	0,b	;So that CHECK_DEV_LUN admits B=0
 
-        call    CHECK_DEV_LUN
-        ld      e,a
-        ld      a,0
-        ret     c
+	call	CHECK_DEV_LUN
+	ld	e,a
+	ld	a,0
+	ret	c
 
-        ; TODO: Change detect for emulated disk
+	ld	a,1	;Never changed
+	ret
 
-        ld      a,1     ;Never changed
-        ret
-
-        ;ld     a,1
-        ;ret
+	;ld	a,1
+	;ret
 
         ld      a,e
         cp      2
@@ -1929,54 +1692,10 @@ endif
 ;+11 (1): Number of sectors per track (0, if not a hard disk)
 
 LUN_INFO:
-        call    MY_GWORK                ; ix=workarea for this device
-        cp      2                       ; Check device index
-        jr      nz,LUN_INFO_NOEMU
-        ld      a,(ix+WRKAREA.DSKEMU+DSKEMU.ENABLE)   ; Check if disk emulator enabled
-        or      a
-        jp      z,LUN_INFO_ERROR
-        ld      a,b     ; Check LUN number
-        cp      1
-        jp      nz,LUN_INFO_ERROR
+	call	CHECK_DEV_LUN
+	jp	c,LUN_INFO_ERROR
 
-if DEBUG
-        ld      a,'E'
-        call    PRTCHAR
-endif
-        push    hl
-        pop     iy
-
-        ;========== Device properties ==========
-
-        ;---Set the device type
-        ld      (iy),0          ;set device type to 'block type'
-        ld      (iy+1),0        ;sector size (512)
-        ld      (iy+2),2
-        ld      hl,1440
-        ld      (iy+3),l        ;number of sectors
-        ld      (iy+4),h
-        ld      (iy+5),0
-        ld      (iy+6),0
-        ld      (iy+7),1 ;101b     ;Removable, Floppy
-        ld      (iy+8),80       ;Cylinders
-        ld      (iy+9),0
-        ld      (iy+10),2       ;Heads
-        ld      (iy+11),9       ;Sectors/track
-        xor     a
-        ret
-LUN_INFO_NOEMU:
-
-if DEBUG
-        push    af
-        ld      a,'N'
-        call    PRTCHAR
-        pop     af
-endif
-
-        call    CHECK_DEV_LUN
-        jp      c,LUN_INFO_ERROR
-
-        call    MY_GWORK                ; ix=workarea for this device
+	call	MY_GWORK		; ix=workarea for this device
 
         ld      b,a
         call    IDE_ON
@@ -1990,19 +1709,19 @@ endif
 LUN_INFO2:
 
         ld      e,a
-        call    WAIT_DRDY
-        jp      c,LUN_INFO_ERROR
-        ld      a,e
+	call	WAIT_DRDY
+	jp	c,LUN_INFO_ERROR
+	ld	a,e
 
-        call    SELDEV
+	call	SELDEV
 
-        ld      a,(ix+WRKAREA.t321D)
-        and     3
-        cp      3                       ; ATAPI?
-        jp      z,LUN_NFO_ATAPI         ; Yes, skip
+	ld	a,(ix+DEVINFO.t321D)
+	and	3
+	cp	3			; ATAPI?
+	jp	z,LUN_NFO_ATAPI		; Yes, skip
 
-        ld      a,ATACMD.IDENTIFY       ; Send IDENTIFY commad
-        call    PIO_CMD
+	ld	a,ATACMD.IDENTIFY	; Send IDENTIFY commad
+	call	PIO_CMD
         jp      c,LUN_INFO_ERROR
 
         ;========== Device properties ==========
@@ -2033,29 +1752,16 @@ LUN_INFO2:
         ld      de,(IDE_DATA)   ;DE = Low word
         ld      hl,(IDE_DATA)   ;HL = High word
 
-        ld      (iy+3),e
-        ld      (iy+4),d
-        ld      (iy+5),l
-        ld      (iy+6),h
+	ld	(iy+3),e
+	ld	(iy+4),d
+	ld	(iy+5),l
+	ld	(iy+6),h
 
-        ; Calculate start sector for disk emulation
-        ld      bc,1440
-        ex      de,hl
-        xor     a
-        sbc     hl,bc
-        ex      de,hl
-        ld      bc,0
-        sbc     hl,bc
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+0),e
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+1),d
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+2),l
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.STARTSEC+3),h
-
-        ;Set sector size
-        ld      b,117-62        ;Skip until word 117
+	;Set sector size
+	ld	b,117-62	;Skip until word 117
 .skip2:
-        ld      de,(IDE_DATA)
-        djnz    .skip2
+	ld	de,(IDE_DATA)
+	djnz	.skip2
 
         ld      de,(IDE_DATA)   ;DE = Low word
         ld      hl,(IDE_DATA)   ;HL = High word
@@ -2068,20 +1774,20 @@ LUN_INFO2:
 
         ex      de,hl
         ld      a,d
-        or      e
-        jr      nz,.info_ssize
-        ld      de,512  ;If low word is zero, assume 512 bytes
+	or	e
+	jr	nz,.info_ssize
+	ld	de,512	;If low word is zero, assume 512 bytes
 .info_ssize:
-        ld      (iy+1),e
-        ld      (iy+2),d
-        ld      (ix+WRKAREA.SECTSIZE),e
-        ld      (ix+WRKAREA.SECTSIZE+1),d
+	ld	(iy+1),e
+	ld	(iy+2),d
+	ld	(ix+DEVINFO.SECTSIZE),e
+	ld	(ix+DEVINFO.SECTSIZE+1),d
 
-        ;Flush the rest of the data
-        ld      b,256-118
+	;Flush the rest of the data
+	ld	b,256-118
 .skip3:
-        ld      de,(IDE_DATA)
-        djnz    .skip3
+	ld	de,(IDE_DATA)
+	djnz	.skip3
 
         ; Finish
         call    IDE_OFF
@@ -2115,20 +1821,20 @@ LUN_NFO_ATAPI:
 
         ld      b,255           ;Flush the rest of the data
 .skip1:
-        ld      hl,(IDE_DATA)
-        djnz    .skip1
+	ld	hl,(IDE_DATA)
+	djnz	.skip1
 
 
-        ld      hl,512                  ;Set the buffer size to 512 bytes
-        ld      (IDE_LBAMID),hl 
-        ld      l,(ix+WRKAREA.pBASEWRK)         ; hl=WorkArea
-        ld      h,(ix+WRKAREA.pBASEWRK+1)
-        ld      de,WRKAREA.PCTBUFF
-        add     hl,de
-        push    hl
-        ld      (hl),PACKETCMD.RDCAPACITY
-        inc     hl
-        ld      b,11
+	ld	hl,512			;Set the buffer size to 512 bytes
+	ld	(IDE_LBAMID),hl	
+	ld	l,(ix+DEVINFO.pBASEWRK)		; hl=WorkArea
+	ld	h,(ix+DEVINFO.pBASEWRK+1)
+	ld	de,WRKAREA.PCTBUFF
+	add	hl,de
+	push	hl
+	ld	(hl),PACKETCMD.RDCAPACITY
+	inc	hl
+	ld	b,11
 .zloop: ld      (hl),0          ; Clear the rest of the package
         inc     hl
         djnz    .zloop
@@ -2186,18 +1892,18 @@ LUN_NFO_ATAPI:
 
         ex      de,hl
         ld      a,d
-        or      e
-        jr      nz,.info_ssizeatapi
-        ld      de,512  ;If low word is zero, assume 512 bytes
+	or	e
+	jr	nz,.info_ssizeatapi
+	ld	de,512	;If low word is zero, assume 512 bytes
 .info_ssizeatapi:
-        ld      (iy+1),e                        ; Set the sector size
-        ld      (iy+2),d
-        ld      (ix+WRKAREA.SECTSIZE),e
-        ld      (ix+WRKAREA.SECTSIZE+1),d
+	ld	(iy+1),e			; Set the sector size
+	ld	(iy+2),d
+	ld	(ix+DEVINFO.SECTSIZE),e
+	ld	(ix+DEVINFO.SECTSIZE+1),d
 
-        call    IDE_OFF
-        xor     a
-        ret
+	call	IDE_OFF
+	xor	a
+	ret
 
 .errorpop:
         pop     hl
@@ -2284,19 +1990,6 @@ DEV_CMD:
 ;=======================
 ; Subroutines
 ;=======================
-
-; ------------------------------------------------
-CLRCTRLSTOP:
-; Workaround for a bug on Nextor: Clear the CTRL+STOP
-; signal so it wont freeze when booting
-; https://github.com/Konamiman/Nextor/issues/1
-; ------------------------------------------------
-        ld      a,(INTFLG)
-        cp      3               ; Is CTRL+STOP still signaled?
-        ret     nz
-        xor     a
-        ld      (INTFLG),a      ; Clear CTRL+STOP otherwise Nextor will freeze
-        ret
 
 ;-----------------------------------------------------------------------------
 ;
@@ -2677,34 +2370,51 @@ RESET_ALL:
         call    SELDEV
         ld      a,ATAPICMD.RESET
         ld      (IDE_CMD),a
-        ret
+	ret
 
 
 ;-----------------------------------------------------------------------------
 ; Checks for a diagnostic error and set a warning flag accordingly
 ; Input : none
-; Output: WRKAREA.t321D and WRKAREA.EMUENA:
-;         0=no error
+; Output: WRKAREA.MASTER.t321D and WRKAREA.SLAVE.t321D:
+;	  0=no error
 ;         bit7=1: error.  b6~b0: reported error code
 ; Modifies: B
 
 
 CHKDIAG:
-        ld      a,(ix+WRKAREA.t321D)
-        inc     a                       ; Undetected master?
-        scf
-        ret     z                       ; Yes, quit with error
-        ld      a,(IDE_ERROR)
-        ld      b,a                     ; b=DIAG status
-        and     #7F                     ; Crop the master error code
-        cp      1                       ; Any error?
-        ret     z                       ; No, return without error
-.saveerrms:     ; Save the error code from the master
-        or      #80
-        ld      (ix+WRKAREA.t321D),a
-        xor     a                       ; Also disable disk emulation
-        ld      (ix+WRKAREA.DSKEMU+DSKEMU.ENABLE),a
-        ret                             ; Return without error
+	ld	a,(ix+WRKAREA.MASTER+DEVINFO.t321D)
+	inc	a			; Undetected master?
+	scf
+	ret	z			; Yes, quit with error
+	ld	a,(IDE_ERROR)
+	ld	b,a			; b=DIAG status
+	and	#7F			; Crop the master error code
+	cp	1			; Any error?
+	jr	z,.chkslave		; No, skip
+.saveerrms:	; Save the error code from the master
+	or	#80
+	ld	(ix+WRKAREA.MASTER+DEVINFO.t321D),a
+	bit	7,b			; Error on slave?
+	scf
+	ret	z			; No, quit
+.chkslave:
+	bit	7,b			; Error on slave?
+	ret	z			; No, quit
+	ld	a,M_DEV			; Select the slave
+	call	SELDEV
+	ld	a,(IDE_ERROR)
+	and	#7F			; Crop the slave error code
+	cp	1			; Any error?
+	ret	z			; No, quit
+.saveerrsl:	; Save the error code from the slave
+	or	#80
+	ld	(ix+WRKAREA.SLAVE+DEVINFO.t321D),a
+	ld	a,b
+	cp	1			; Any error reported?
+	ret	z			; No, quit with Cy=off
+	scf				; Cy=on if there was any error
+	ret
 
 ;-----------------------------------------------------------------------------
 ; Prints an explanation message for a diagnostic error
@@ -2815,15 +2525,21 @@ MY_GWORK:
         EX      AF,AF'
         XOR     A
         LD      IX,GWORK
-        call    CALBNK
-        pop     af
-        push    de
-        ld      e,(ix)                  ; de=Pointer to the WorkAREA in RAM 
-        ld      d,(ix+1)
-        ld      ix,0
-        add     ix,de                   ; Point ix to the device work area
-        pop     de
-        ret
+	call	CALBNK
+	pop	af
+	push	de
+	ld	e,(ix)			; de=Pointer to the WorkAREA in RAM 
+	ld	d,(ix+1)
+	ld	ix,0
+	or	a
+	jr	z,.end
+	cp	1
+	ld	ix,WRKAREA.MASTER+DEVINFO.BASE
+	jr	z,.end
+	ld	ix,WRKAREA.SLAVE+DEVINFO.BASE
+.end:	add	ix,de			; Point ix to the device work area
+	pop	de
+	ret
 
 ;-----------------------------------------------------------------------------
 ;
@@ -2849,19 +2565,19 @@ CHECK_DEV_LUN:
         scf
         ret     nz
 
-        push    hl
-        push    de
-        call    MY_GWORK
-        pop     de
-        pop     hl
-        ld      c,a
-        ld      a,(ix+WRKAREA.t321D)
-        and     3
-        jr      z,.nodev
-        cp      1               ; TODO: Implement CHS support
-        jr      z,.nodev        ; For now, CHS devices are unsupported
-        ld      a,c
-        or      a
+	push	hl
+	push	de
+	call	MY_GWORK
+	pop	de
+	pop	hl
+	ld	c,a
+	ld	a,(ix+DEVINFO.t321D)
+	and	3
+	jr	z,.nodev
+	cp	1		; TODO: Implement CHS support
+	jr	z,.nodev	; For now, CHS devices are unsupported
+	ld	a,c
+	or	a
         ret
 
 .nodev:
@@ -2905,18 +2621,18 @@ SETLDIRHLPR:
         ret
 
 .useLDIR:
-        exx
-        push    bc
-        exx
-        pop     de              ; de=block size
-        ld      l,(ix+WRKAREA.pBASEWRK)
-        ld      h,(ix+WRKAREA.pBASEWRK+1)
-        ; Set the the block size
-        ; *** BLKLEN must be the first data in the workArea
-        ld      (hl),e
-        inc     hl
-        ld      (hl),d
-        ; Point to the data transfer routine
+	exx
+	push	bc
+	exx
+	pop	de		; de=block size
+	ld	l,(ix+DEVINFO.pBASEWRK)
+	ld	h,(ix+DEVINFO.pBASEWRK+1)
+	; Set the the block size
+	; *** BLKLEN must be the first data in the workArea
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	; Point to the data transfer routine
         ld      de,WRKAREA.LDIRHLPR-1
         add     hl,de
         exx                     ; hl'=Pointer to LDIR helper routine
@@ -2935,20 +2651,22 @@ INIWORK:
         ld      b,WRKAREA._SIZE
         xor     a
 .clrwork2:
-        ld      (hl),a
-        inc     hl
-        djnz    .clrwork2
+	ld	(hl),a
+	inc	hl
+	djnz	.clrwork2
 
-        pop     hl
-        ; Set the pointers to go back to the base of the WorkArea
-        ld      (ix+WRKAREA.pBASEWRK),l
-        ld      (ix+WRKAREA.pBASEWRK+1),h
+	pop	hl
+	; Set the pointers to go back to the base of the WorkArea
+	ld	(ix+WRKAREA.MASTER+DEVINFO.pBASEWRK),l
+	ld	(ix+WRKAREA.MASTER+DEVINFO.pBASEWRK+1),h
+	ld	(ix+WRKAREA.SLAVE+DEVINFO.pBASEWRK),l
+	ld	(ix+WRKAREA.SLAVE+DEVINFO.pBASEWRK+1),h
 
-        ; Install the data transfer helper routine in the WorkArea 
-        ; This speeds up the LDIR speed a lot for the R800
-        ld      de,WRKAREA.LDIRHLPR
-        add     hl,de
-        ex      de,hl
+	; Install the data transfer helper routine in the WorkArea 
+	; This speeds up the LDIR speed a lot for the R800
+	ld	de,WRKAREA.LDIRHLPR
+	add	hl,de
+	ex	de,hl
         ld      hl,R800DATHLP
         ld      bc,R800DATHLP.end-R800DATHLP
         ldir
@@ -3044,130 +2762,10 @@ printnibble:
         ld      a,#F            ; Limit to 15
 .printAF:
         add     "A"-10
-        jp      CHPUT
+	jp	CHPUT
 .print09:
-        add     "0"
-        jp      CHPUT
-
-;-----------------------------------------------------------------------------
-; Debug functions
-;-----------------------------------------------------------------------------
-IF DEBUG
-
-PRTCHAR:
-        ex      af,af'
-        push    af
-        ; safe IFF
-        ld      a, i  ; this is the core of the trick, it sets P/V to the value of IFF so P/V is set iff interrupts were enabled at that point
-        jp      pe,.1
-        ld      a, i  ; test again, to fix potential "false negative" from interrupt occurring at first test
-.1:     push    af  ; save flags
-        exx
-        push    ix
-        push    iy
-        push    bc
-        push    de
-        push    hl
-        exx
-        ex      af,af'
-        push    ix
-        push    iy
-        ld      ix,CHPUT
-        ld      iy,(EXPTBL-1)
-        call    CALSLT
-        pop     iy
-        pop     ix
-        ex      af,af'
-        exx
-        pop     hl
-        pop     de
-        pop     bc
-        pop     iy
-        pop     ix
-        exx
-
-        ;; restore IFF
-        pop     af      ; get back flags
-        di
-        jp      po,.2   ; po = P/V reset so in this case it means interrupts were disabled before the routine was called
-        ei              ; re-enable interrupts
-.2:
-        pop     af
-        ex      af,af'
-        ret
-
-WAITKEY:
-        ex      af,af'
-        push    af
-        ; safe IFF
-        ld      a, i  ; this is the core of the trick, it sets P/V to the value of IFF so P/V is set iff interrupts were enabled at that point
-        jp      pe,.1
-        ld      a, i  ; test again, to fix potential "false negative" from interrupt occurring at first test
-.1:     push    af  ; save flags
-        exx
-        push    ix
-        push    iy
-        push    bc
-        push    de
-        push    hl
-        exx
-        ex      af,af'
-        push    ix
-        push    iy
-        push    af
-        ld      ix,CHGET
-        ld      iy,(EXPTBL-1)
-        call    CALSLT
-        pop     af
-        pop     iy
-        pop     ix
-        ex      af,af'
-        exx
-        pop     hl
-        pop     de
-        pop     bc
-        pop     iy
-        pop     ix
-        exx
-
-        ;; restore IFF
-        pop     af      ; get back flags
-        di
-        jp      po,.2   ; po = P/V reset so in this case it means interrupts were disabled before the routine was called
-        ei              ; re-enable interrupts
-.2:
-        pop     af
-        ex      af,af'
-        ret
-
-PRTHEXBYTE:
-        ld      c,a
-        rrca
-        rrca
-        rrca
-        rrca
-        and     #F
-        call    xprintnibble
-        ld      a,c
-        and     #F
-        call    xprintnibble
-        ret
-
-xprintnibble:
-        cp      10              ; <=9?
-        jr      c,.xprint09      ; Yes, skip
-;       ld      a,9             ; Limit to 1 digit
-        cp      15
-        jr      c,.xprintAF
-        ld      a,#F            ; Limit to 15
-.xprintAF:
-        add     "A"-10
-        jp      PRTCHAR
-.xprint09:
-        add     "0"
-        jp      PRTCHAR
-
-ENDIF
+	add	"0"
+	jp	CHPUT
 
 ;-----------------------------------------------------------------------------
 ;
@@ -3224,49 +2822,52 @@ INICHKSTOP:
         jp      PRINT
 
 
+
 ;=======================
 ; Strings
 ;=======================
 
 INFO_S:
-        db      13,"Carnivore2 CompactFlash driver v",27,'J'
-        db      VER_MAIN+30h,'.',VER_SEC+30h,'.',VER_REV+30h
+	db	13,"Sunrise compatible IDE driver v",27,'J'
+	db	VER_MAIN+30h,'.',VER_SEC+30h,'.',VER_REV+30h
 
-CRLF_S: db      13,10,0
+	ifdef MASTER_ONLY
+
+	db 13,10,"Master device only edition"
+
+	endif
+
+CRLF_S:	db	13,10,0
 COPYRIGHT_S:
-        db      "(c) 2009 Konamiman",13,10
-        db      "(c) 2014 Piter Punk",13,10
-        db      "(c) 2017 FRS",13,10
-        db      "(c) 2024 Tim Brugman",13,10,13,10,0
+	db	"(c) 2009 Konamiman",13,10
+	db	"(c) 2014 Piter Punk",13,10
+	db	"(c) 2017 FRS",13,10,13,10,0
 
 BOOTPAUSE_S:
-        db      "Paused. Press <i> to show the copyright info.",13,10,0
+	db	"Paused. Press <i> to show the copyright info.",13,10,0
 
 SEARCH_S:
-        db      "Searching: ",0
+	db	"Searching: ",0
 
 NODEVS_S:
         db      "not found",13,10,0
 ABORTED_S:
-        db      "<aborted>",13,10,0
+	db	"<aborted>",13,10,0
 INIT_S:
-        db      13,"Initializing : ",27,'J',0
+	db	13,"Initializing : ",27,'J',0
 MASTER_S:
-        db      13,"Master device: ",27,'J',0
-SLAVE_S:
-        db      13,"Emulated disk: ",27,'J',0
-NAMEPREFIX_S:
-        db      13,10,"  -> ",0
-DSKEMU_OFF_S:
-        db      "Disabled",13,10,0
-DSKEMU_ON_S:
-        db      "Enabled",13,10,0
-DSKEMU_EXCL_S:
-        db      "As boot disk",13,10,0
+	db	13,"Master device: ",27,'J',0
 
-OK_S:   db      "Ok",13,10,0
+	ifndef MASTER_ONLY
+
+SLAVE_S:
+	db	13,"Slave device : ",27,'J',0
+
+	endif
+
+OK_S:	db	"Ok",13,10,0
 ERROR_S:
-        db      "Error!",13,10,0
+	db	"Error!",13,10,0
 
 DETECT_S:
         db      "detecting",0
