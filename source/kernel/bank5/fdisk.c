@@ -15,13 +15,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "../../tools/C/system.h"
-#include "../../tools/C/dos.h"
-#include "../../tools/C/types.h"
-#include "../../tools/C/asmcall.h"
+#include "system.h"
+#include "dos.h"
+#include "types.h"
+#include "asmcall.h"
 #include "drivercall.h"
-#include "../../tools/C/partit.h"
+#include "partit.h"
 #include "fdisk.h"
+#include "printf.h"
 
 extern void __ultoa(long val, char* buffer, char base);
 
@@ -1683,6 +1684,6 @@ int CallFunctionInExtraBank(int functionNumber, void* parametersBuffer)
 }
 
 
-#include "../../tools/C/printf.c"
-#include "../../tools/C/asmcall.c"
+#include "printf.c"
+#include "asmcall.c"
 #include "drivercall.c"

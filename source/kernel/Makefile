@@ -568,16 +568,16 @@ bank5/fdisk.dat: \
 	bank5/fdisk.c \
 	bank5/drivercall.h \
 	bank5/drivercall.c \
-	../tools/C/system.h \
-	../tools/C/dos.h \
-	../tools/C/types.h \
-	../tools/C/asmcall.h \
-	../tools/C/printf.c \
-	../tools/C/asmcall.c \
-	../tools/C/partit.h
+	../tools/C/include/system.h \
+	../tools/C/include/dos.h \
+	../tools/C/include/types.h \
+	../tools/C/include/asmcall.h \
+	../tools/C/libcommon/printf.c \
+	../tools/C/libcommon/asmcall.c \
+	../tools/C/include/partit.h
 
 	sdcc -o bank5/ --code-loc 0x4120 --data-loc 0x8020 -mz80 --disable-warning 196 --disable-warning 84 --disable-warning 85 \
-	     --max-allocs-per-node 1000 --allow-unsafe-read --opt-code-size --no-std-crt0 bank5/fdisk_crt0.rel $(patsubst %.dat,%.c,$@)
+	     --max-allocs-per-node 1000 --allow-unsafe-read --opt-code-size --no-std-crt0 -I../tools/C/include -I../tools/C/libcommon bank5/fdisk_crt0.rel $(patsubst %.dat,%.c,$@)
 	$(call hex2bin,$(patsubst %.dat,%.ihx,$@),$@)
 
 bank5/fdisk2.dat: \
@@ -586,16 +586,16 @@ bank5/fdisk2.dat: \
 	bank5/fdisk2.c \
 	bank5/drivercall.h \
 	bank5/drivercall.c \
-	../tools/C/system.h \
-	../tools/C/dos.h \
-	../tools/C/types.h \
-	../tools/C/asmcall.h \
-	../tools/C/printf.c \
-	../tools/C/asmcall.c \
-	../tools/C/partit.h
+	../tools/C/include/system.h \
+	../tools/C/include/dos.h \
+	../tools/C/include/types.h \
+	../tools/C/include/asmcall.h \
+	../tools/C/libcommon/printf.c \
+	../tools/C/libcommon/asmcall.c \
+	../tools/C/include/partit.h
 
 	sdcc -o bank5/ --code-loc 0x4120 --data-loc 0xA020 -mz80 --disable-warning 196 --disable-warning 84 --disable-warning 85 \
-	     --max-allocs-per-node 1000 --allow-unsafe-read --opt-code-size --no-std-crt0 bank5/fdisk_crt0.rel $(patsubst %.dat,%.c,$@)
+	     --max-allocs-per-node 1000 --allow-unsafe-read --opt-code-size --no-std-crt0 -I../tools/C/include -I../tools/C/libcommon bank5/fdisk_crt0.rel $(patsubst %.dat,%.c,$@)
 	$(call hex2bin,$(patsubst %.dat,%.ihx,$@),$@)
 
 bank5/fdisk_crt0.rel: \

@@ -1,6 +1,6 @@
 #include "drivercall.h"
-#include "../../tools/C/asmcall.h"
-#include "../../tools/C/dos.h"
+#include "asmcall.h"
+#include "dos.h"
 
 //The following is required in the main program:
 //byte ASMRUT[4];
