@@ -20,6 +20,7 @@
 #include "asmcall.h"
 #include "types.h"
 #include "dos.h"
+#include "printf.h"
 
 	/* Typedefs */
 
@@ -403,10 +404,3 @@ void WritebootSector()
 		TerminateWithDosError(regs.Bytes.A);
 	}
 }
-
-
-#define COM_FILE
-#include "print_msxdos.c"
-#include "printf.c"
-#include "asmcall.c"
-#include "strcmpi.c"

@@ -17,6 +17,7 @@
 #include "asmcall.h"
 #include "types.h"
 #include "dos.h"
+#include "printf.h"
 
 /* Defines */
 
@@ -280,8 +281,3 @@ void WriteOneByte(byte fileHandle, byte value)
 		TerminateWithDosError(regs.Bytes.A);
 	}
 }
-
-#define COM_FILE
-#include "print_msxdos.c"
-#include "printf.c"
-#include "asmcall.c"

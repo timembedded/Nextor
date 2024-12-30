@@ -17,6 +17,7 @@
 #include "system.h"
 #include "dos.h"
 #include "asmcall.h"
+#include "printf.h"
 
 /* Defines */
 
@@ -204,8 +205,3 @@ void ResetComputer()
     //Just in case, but we should never reach here
     Terminate(null);
 }
-
-#define COM_FILE
-#include "print_msxdos.c"
-#include "printf.c"
-#include "asmcall.c"

@@ -27,7 +27,7 @@
 //#define SUPPORT_LONG
 
 #include <stdarg.h>
-#include "system.h"
+#include <system.h>
 
 #define CONOUT 2
 
@@ -40,14 +40,14 @@ extern void __itoa(int val, char* buffer, char base);
 
 static int format_string(const char* buf, const char *fmt, va_list ap);
 
-int printf(const char *fmt, ...)
+int printf_custom(const char *fmt, ...)
 {
   va_list arg;
   va_start(arg, fmt);
   return format_string(0, fmt, arg);
 }
 
-int sprintf(const char* buf, const char* fmt, ...)
+int sprintf_custom(const char* buf, const char* fmt, ...)
 {
   va_list arg;
   va_start(arg, fmt);

@@ -20,6 +20,7 @@
 #include "system.h"
 #include "partit.h"
 #include "strcmpi.h"
+#include "printf.h"
 
 	/* Typedefs */
 
@@ -898,9 +899,3 @@ void DoDosCall(byte functionCode)
         TerminateWithDosError(regs.Bytes.A);
     }
 }
-
-#define COM_FILE
-#include "print_msxdos.c"
-#include "printf.c"
-#include "asmcall.c"
-#include "strcmpi.c"

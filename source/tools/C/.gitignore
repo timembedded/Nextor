@@ -1,4 +1,1 @@
-*.asm
-*.com
-*.rel
-*.relx
+build/

@@ -21,6 +21,7 @@
 #include "types.h"
 #include "dos.h"
 #include "partit.h"
+#include "printf.h"
 
 	/* Defines */
 
@@ -408,9 +409,3 @@ void ReadOrWriteSector(bool write) {
 	regs2.Words.DE = (int)SECTOR_NUMBER_BUFFER;
 	DoDosCall(_CDRVR);
 }
-
-#define COM_FILE
-#include "print_msxdos.c"
-#include "printf.c"
-#include "asmcall.c"
-#include "strcmpi.c"

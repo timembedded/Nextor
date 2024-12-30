@@ -1,3 +1,6 @@
+#include <strcmpi.h>
+#include <ctype.h>
+
 int strcmpi(const char *a1, const char *a2) {
 	char c1, c2;
 	/* Want both assignments to happen but a 0 in both to quit, so it's | not || */
