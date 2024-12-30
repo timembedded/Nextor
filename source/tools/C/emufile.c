@@ -22,7 +22,7 @@
 #include "strcmpi.h"
 #include "printf.h"
 
-	/* Typedefs */
+    /* Typedefs */
 
 typedef struct {
     char signature[16];
@@ -39,7 +39,7 @@ typedef struct {
     uint fileSizeInSector;
 } GeneratedFileTableEntry;
     
-	/* Defines */
+    /* Defines */
 
 #define IS_NEXTOR (1 << 7)
 #define IS_DEVICE_BASED (1)
@@ -182,18 +182,18 @@ void ResetComputer();
 #define ReadDeviceSector(driverSlot, deviceIndex, lunIndex, sectorNumber, buffer) DeviceSectorRW(driverSlot, deviceIndex, lunIndex, sectorNumber, buffer, false)
 #define WriteDeviceSector(driverSlot, deviceIndex, lunIndex, sectorNumber, buffer) DeviceSectorRW(driverSlot, deviceIndex, lunIndex, sectorNumber, buffer, true)
 
-	/* MAIN */
-	
+    /* MAIN */
+    
 int main(char** argv, int argc)
 {
     bool isSetupFile;
 
     ASMRUT[0] = 0xC3;
-	print(strTitle);
+    print(strTitle);
 
     CheckPreconditions();
-	Initialize();
-	isSetupFile = ProcessArguments(argv, argc);
+    Initialize();
+    isSetupFile = ProcessArguments(argv, argc);
 
     if(isSetupFile) {
         SetupFile();
@@ -210,8 +210,8 @@ int main(char** argv, int argc)
         print(strUsage);
     }
     
-	Terminate(null);
-	return 0;
+    Terminate(null);
+    return 0;
 }
 
 /* Functions */
@@ -241,22 +241,22 @@ void CheckPrimaryControllerIsNextor()
 
 void Initialize()
 {
-	mallocPointer = (void*)MallocBase;
-	
-	outputFileName = malloc(128);
+    mallocPointer = (void*)MallocBase;
+    
+    outputFileName = malloc(128);
     *outputFileName = (char)0;
     
     fib = malloc(sizeof(fileInfoBlock));
     driveInfo = malloc(sizeof(driveLetterInfo));
     driveParameters = malloc(32);
-	fileContentsBase = malloc(
+    fileContentsBase = malloc(
         sizeof(GeneratedFileHeader) +
         (sizeof(GeneratedFileTableEntry) * MaxFilesToProcess));
     fileNamesBase = malloc(19 * MaxFilesToProcess);
     fileNamesAppendAddress = fileNamesBase;
     
     fileHandle = 0;
-	bootFileIndex = 1;
+    bootFileIndex = 1;
     printFilenames = false;
     workAreaAddress = 0;
     totalFilesProcessed = 0;
@@ -269,7 +269,7 @@ bool ProcessArguments(char** argv, int argc)
         Terminate(null);
     }
 
-	if(argc < 2) {
+    if(argc < 2) {
         print(strUsage);
         Terminate(null);
     }
@@ -286,28 +286,28 @@ bool ProcessArguments(char** argv, int argc)
 void ProcessCreateFileArguments(char** argv, int argc)
 {
     int i;
-	char* currentArg;
+    char* currentArg;
     bool processingOptions;
 
     processingOptions = true;
 
     for(i=0; i<argc; i++) {
-	    currentArg = argv[i];
-		if(currentArg[0] == '-') {
+        currentArg = argv[i];
+        if(currentArg[0] == '-') {
             if(processingOptions) {
-		        i += ProcessOption(currentArg[1], argv[i+1]);
+                i += ProcessOption(currentArg[1], argv[i+1]);
             } else {
                 Terminate("Can't process more options after filenames");
             }
         } else if(*outputFileName == null) {
             processingOptions = false;
             AddFileExtension(currentArg);
-		} else if(totalFilesProcessed < MaxFilesToProcess) {
-		    ProcessFilename(currentArg);
-		} else {
+        } else if(totalFilesProcessed < MaxFilesToProcess) {
+            ProcessFilename(currentArg);
+        } else {
             TooManyFiles();
         }
-	}
+    }
 
     if(*outputFileName == null) {
         Terminate("No output file name specified");
@@ -370,24 +370,24 @@ void ProcessSetupFileArguments(char** argv, int argc)
 int ProcessOption(char optionLetter, char* optionValue)
 {
     optionLetter |= 32;
-	
-	if(optionLetter == 'b') {
-	    ProcessBootIndexOption(optionValue);
-		return 1;
-	}
-	
-	if(optionLetter == 'a') {
-	    ProcessWorkAreaAddressOption(optionValue);
-		return 1;
-	}
-	
+    
+    if(optionLetter == 'b') {
+        ProcessBootIndexOption(optionValue);
+        return 1;
+    }
+    
+    if(optionLetter == 'a') {
+        ProcessWorkAreaAddressOption(optionValue);
+        return 1;
+    }
+    
     if(optionLetter == 'p') {
-	    ProcessPrintFilenamesOption();
-		return 0;
-	}
+        ProcessPrintFilenamesOption();
+        return 0;
+    }
 
-	InvalidParameter();
-	return 0;
+    InvalidParameter();
+    return 0;
 }
 
 void ConvertDirectoryToFilename(char* fileOrDirectoryName)
@@ -425,15 +425,15 @@ void ProcessBootIndexOption(char* optionValue)
 {
     char index;
     
-	if(optionValue[1] != 0) {
-	    InvalidParameter();
-	}
-	
-	index = *optionValue | 32;
-	
-	if(index >= '1' && index <= '9') {
+    if(optionValue[1] != 0) {
+        InvalidParameter();
+    }
+    
+    index = *optionValue | 32;
+    
+    if(index >= '1' && index <= '9') {
         bootFileIndex = index - '0';
-	} else if(index >= 'a' && index <= 'w') {
+    } else if(index >= 'a' && index <= 'w') {
         bootFileIndex = index - 'a' + 10;
     } else {
         InvalidParameter();
@@ -442,7 +442,7 @@ void ProcessBootIndexOption(char* optionValue)
 
 void ProcessWorkAreaAddressOption(char* optionValue)
 {
-	workAreaAddress = ParseHex(optionValue);
+    workAreaAddress = ParseHex(optionValue);
     
     if(workAreaAddress != 0 && (workAreaAddress < 0xC000 || workAreaAddress > 0xFFEF)) {
         InvalidParameter();
@@ -501,9 +501,9 @@ bool DirectoryExists(char* dirName)
 void ProcessFileFound()
 {
     char key;
-	ulong sector;
+    ulong sector;
 
-	GetDriveInfoForFileInFib();
+    GetDriveInfoForFileInFib();
     CheckControllerForFileInFib();
     CheckConsecutiveClustersForFileInFib();
     
@@ -517,10 +517,10 @@ void ProcessFileFound()
         return;
     }
     
-	sector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib();
-	AddFileInFibToFilesTable(sector);
-	AddFileInFibToFilenamesInfo();
-	
+    sector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib();
+    AddFileInFibToFilesTable(sector);
+    AddFileInFibToFilenamesInfo();
+    
     totalFilesProcessed++;
 
     if(printFilenames) {
@@ -531,7 +531,7 @@ void ProcessFileFound()
 
 void GetDriveInfoForFileInFib()
 {
-	regs.Bytes.A = fib->logicalDrive - 1;
+    regs.Bytes.A = fib->logicalDrive - 1;
     regs.Words.HL = (int)driveInfo;
     DoDosCall(_GDLI);
 }
@@ -709,7 +709,7 @@ void GenerateFile()
 
 void SetupFile()
 {
-	ulong sector;
+    ulong sector;
     masterBootRecord* sectorBuffer;
     partitionTableEntry* partition;
     byte error;
@@ -717,7 +717,7 @@ void SetupFile()
     ConvertDirectoryToFilename(outputFileName);
     AddFileExtension(outputFileName);
     StartSearchingFiles(outputFileName);
-	GetDriveInfoForFileInFib();
+    GetDriveInfoForFileInFib();
     CheckControllerForFileInFib();
   
     if(fib->fileSize == 0) {
@@ -728,8 +728,8 @@ void SetupFile()
 
     VerifyDataFileSignature((byte*)sectorBuffer);
 
-	sector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib();
-	
+    sector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib();
+    
     if(setupPartitionDeviceIndex == 0) {
         setupPartitionDeviceIndex = driveInfo->deviceIndex;
         setupPartitionLunIndex = driveInfo->logicalUnitNumber;
@@ -786,30 +786,30 @@ void VerifyDataFileSignature(byte* sectorBuffer)
 
 byte DeviceSectorRW(byte driverSlot, byte deviceIndex, byte lunIndex, ulong sectorNumber, byte* buffer, bool write)
 {
-	regs.Flags.C = write;
-	regs.Bytes.A = deviceIndex;
-	regs.Bytes.B = 1;
-	regs.Bytes.C = lunIndex;
-	regs.Words.HL = (int)buffer;
-	regs.Words.DE = (int)&sectorNumber;
+    regs.Flags.C = write;
+    regs.Bytes.A = deviceIndex;
+    regs.Bytes.B = 1;
+    regs.Bytes.C = lunIndex;
+    regs.Words.HL = (int)buffer;
+    regs.Words.DE = (int)&sectorNumber;
 
-	DriverCall(driverSlot, DEV_RW);
-	return regs.Bytes.A;
+    DriverCall(driverSlot, DEV_RW);
+    return regs.Bytes.A;
 }
 
 void DriverCall(byte slot, uint routineAddress)
 {
-	byte registerData[8];
-	int i;
+    byte registerData[8];
+    int i;
 
-	memcpy(registerData, &regs, 8);
+    memcpy(registerData, &regs, 8);
 
-	regs.Bytes.A = slot;
-	regs.Bytes.B = 0xFF;
-	regs.UWords.DE = routineAddress;
-	regs.Words.HL = (int)registerData;
+    regs.Bytes.A = slot;
+    regs.Bytes.B = 0xFF;
+    regs.UWords.DE = routineAddress;
+    regs.Words.HL = (int)registerData;
 
-	DoDosCall(_CDRVR);
+    DoDosCall(_CDRVR);
 
     regs.Words.AF = regs.Words.IX;
 }
@@ -855,7 +855,7 @@ void CheckDosVersion()
     regs.Words.DE = (int)0xABCD;
     regs.Words.IX = 0;
     DosCall(_DOSVER, &regs, REGS_ALL, REGS_ALL);
-	
+    
     if(regs.Bytes.B < 2 || regs.Bytes.IXh != 1) {
         Terminate("This program is for Nextor only.");
     }
@@ -863,9 +863,9 @@ void CheckDosVersion()
 
 void* malloc(int size)
 {
-	void* value = mallocPointer;
-	mallocPointer = (void*)(((int)mallocPointer) + size);
-	return value;
+    void* value = mallocPointer;
+    mallocPointer = (void*)(((int)mallocPointer) + size);
+    return value;
 }
 
 uint ParseHex(char* hexString)
