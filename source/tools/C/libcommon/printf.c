@@ -40,19 +40,31 @@ extern void __itoa(int val, char* buffer, char base);
 
 static int format_string(const char* buf, const char *fmt, va_list ap);
 
-int printf_custom(const char *fmt, ...)
+#ifdef MSXDOS
+
+void print(char* s) __naked
 {
-  va_list arg;
-  va_start(arg, fmt);
-  return format_string(0, fmt, arg);
+    __asm
+
+    ;HL = *s
+
+loop:
+    ld      a,(hl)
+    or      a
+    jr      z,end
+    ld      e,a
+    ld      c,#2
+    push    hl
+    call    #5
+    pop     hl
+    inc     hl
+    jr      loop
+end:
+    ret
+    __endasm;
 }
 
-int sprintf_custom(const char* buf, const char* fmt, ...)
-{
-  va_list arg;
-  va_start(arg, fmt);
-  return format_string(buf, fmt, arg);
-}
+#endif
 
 static void do_char(char c, const char* buf) __naked
 {
@@ -67,7 +79,7 @@ static void do_char(char c, const char* buf) __naked
   ld a,h
   or l
 
-#ifdef COM_FILE
+#ifdef MSXDOS
   ld c,#CONOUT
   jp z,5
 #else
@@ -88,6 +100,20 @@ DO_CHPUT:
   ret
 
   __endasm;
+}
+
+int printf_custom(const char *fmt, ...)
+{
+  va_list arg;
+  va_start(arg, fmt);
+  return format_string(0, fmt, arg);
+}
+
+int sprintf_custom(const char* buf, const char* fmt, ...)
+{
+  va_list arg;
+  va_start(arg, fmt);
+  return format_string(buf, fmt, arg);
 }
 
 #define do_char_inc(c) {do_char(c,bufPnt); if(bufPnt) { bufPnt++; } count++;}

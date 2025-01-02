@@ -4,7 +4,7 @@
 # The generated files are copied to the output directory.
 
 BUILD_DIR := build
-OUTPUT_DIR := output
+OUTPUT_DIR := ../../../bin/tools
 LIBS_DIR := .
 
 COMS := \
@@ -47,7 +47,7 @@ all:
 
 .SECONDARY:
 .PHONY: c-tools
-c-tools: $(addprefix $(BUILD_DIR)/,$(COMS))
+c-tools: $(addprefix $(OUTPUT_DIR)/,$(COMS))
 
 TOOLS := $(CC) $(AS) $(AR) $(OBJCOPY)
 
@@ -75,8 +75,10 @@ $(BUILD_DIR)/%.com: $(BUILD_DIR)/%.rel $(COMS_CRT0) $(LIBFILES)
 	@echo Linking $(notdir $@) ...
 	@sdcc -o $(BUILD_DIR)/ $(CFLAGS) --no-std-crt0 $^
 	@objcopy -I ihex -O binary $(@:.com=.ihx) $@
+
+$(OUTPUT_DIR)/%.com: $(BUILD_DIR)/%.com
 	@mkdir -p $(OUTPUT_DIR)
-	@cp $@ $(OUTPUT_DIR)/$(notdir:$@)
+	@cp $< $@
 
 $(BUILD_DIR)/%.rel: %.c
 	@echo Compiling $< ...
@@ -90,7 +92,7 @@ $(BUILD_DIR)/%.rel: %.s
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILD_DIR)/ $(OUTPUT_DIR)/
+	@rm -rf $(BUILD_DIR)/
 	@$(foreach libfile,$(LIBFILES),\
-		"$(MAKE)" --no-print-directory -C $(dir $(libfile)).. clean;)
+		"$(MAKE)" --no-print-directory -C $(abspath $(dir $(libfile))..) clean;)
 	@"$(MAKE)" --no-print-directory -C $(LIBS_DIR)/crt0 clean

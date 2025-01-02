@@ -274,6 +274,11 @@ size	macro	name
 
     size    EMU_DESC_SIZE		;Total size of descriptor
 
+	;Added for fragmented file support
+;	ifield	0F2A0h ;0F309h
+;	field   2,DSK_CURRENT_FILE_CLUS_START    ;First sector within the image that is selected
+;	field   2,DSK_CURRENT_FILE_CLUS_SIZE     ;Number of sectors within the image that is selected
+
 ;-----------------------------------------------------------------------------
 
     ;Temporary work area used at boot time

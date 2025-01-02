@@ -62,6 +62,9 @@ ram_ad	defl	DATABASE
     var2 BK4_ADD,F1D0   ;Address of routine to be called in bank 4
     var TMP_SEC,4       ;Used for temporary storage of a 32 bit sector number
 ;
+	const   DSK_CURRENT_FILE_CLUS_START,TMP_SEC     ;First sector within the image that is selected
+	const   DSK_CURRENT_FILE_CLUS_SIZE,TMP_SEC+2    ;Number of sectors within the image that is selected
+
 ;	------------------------
 ;
 	var0	JUMPBASE,F1D6	;Start of jump table.

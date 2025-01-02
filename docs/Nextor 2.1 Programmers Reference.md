@@ -947,7 +947,11 @@ This section explains some details about the [disk emulation mode](Nextor%202.1%
 
 ### 7.2.1. Disk emulation data file format
 
-The disk emulation data file, used by Nextor to know which disk image files must be used during an emulation session, consists of a header followed by a table with information about each of the disk image files. The header has the following contents:
+The disk emulation data file, used by Nextor to know which disk image files must be used during an emulation session, consists of a header followed by a table with information about each of the disk image files. The original format as introduced in Nextor 2.1 did not support fragmented disk images. A new format is proposed that overcomes this limitation.
+
+#### 7.2.1.1 Original data format (Nextor 2.1)
+
+ The header has the following contents:
 
 | Offset | Meaning |
 |:------:|---------|
@@ -956,6 +960,7 @@ The disk emulation data file, used by Nextor to know which disk image files must
 |   +17  | 1-based index of the file to mount at boot time     |
 |   +18  | Address to use as work area during the emulation session, or 0 if this area must be allocated (2 bytes, little endian) |
 |   +20  | Reserved, must be zero (4 bytes)                    |
+|   +24  | Start of disk image entries (see below)             |
 
 Each entry in the disk image files table is as follows:
 
@@ -969,6 +974,37 @@ Each entry in the disk image files table is as follows:
 If the device number in a disk image files table entry is zero, then Nextor will assume that the disk image file is located at the same device and logical unit as the emulation data file (the logical unit number in the table entry is ignored in this case). The `EMUFILE.COM` tool sets the device number to 0 for all entries if all the disk image files are located in the same device and logical unit as the emulation data file that is being created.
 
 Any contents in the emulation data file past the last entry in the disk images file table is ignored by the Nextor kernel. The `EMUFILE.COM` tool places here a printable list of the disk image filenames, it can be displayed by executing `TYPE /B datafile` in the command prompt.
+
+#### 7.2.1.2 Proposed new data format
+
+ The header has the following contents:
+
+| Offset | Meaning |
+|:------:|---------|
+|   +0   | Signature string `NEXTOR_DSEMU_V2`, zero terminated |
+|   +16  | Number of entries in the disk image files table     |
+|   +17  | 1-based index of the file to mount at boot time     |
+|   +18  | Address to use as work area during the emulation session, or 0 if this area must be allocated (2 bytes, little endian) |
+|   +20  | Reserved, must be zero (4 bytes)                    |
+|   +24  | Start of disk image entries (see below)             |
+
+Each entry in the disk image files table is as follows:
+
+| Offset | Meaning |
+|:------:|---------|
+|   +0   | Number of the device that contains the file (0 = same as emulation data file) |
+|   +1   | Number of the logical unit that contains the file (if device number is not 0)  |
+|   +2   | Absolute device sector number where the file starts OR cluster descriptor index when MSB==0xff |
+|   +6   | Size of the file in sectors (2 bytes, little endian) |
+
+When MSB byte of the sector numnber is 0xff when lowest 16-bits of the sector number is the starting offset in the cluster descriptor table as described below. The offset is relative to the begin of the emulation data.
+Each entry of the variable sized cluster description table is as follows:
+
+| Offset | Meaning |
+|:------:|---------|
+|   +0   | Absolute device sector number for this chunk, relative to the beginning of the virtual disk (4 bytes, little endian) |
+|   +4   | Size of the file chunk in sectors (2 bytes, little endian)                    |
+
 
 ### 7.2.2. Entering disk emulation mode
 

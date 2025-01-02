@@ -407,7 +407,7 @@ bank0/B0.BIN bank0/B0.SYM: \
 	$(call print_linking,"bank 0")
 	@$(LK80) --working-dir bank0 --symbols-file B0.SYM --output-file B0.BIN \
 			--code 4000h ../codes.rel ../kvar.rel ../data.rel ../rel.rel doshead.rel 40ff.rel b0.rel init.rel alloc.rel dskbasic.rel dosboot.rel bdos.rel ramdrv.rel \
-			--code 7700h ../drv.rel \
+			--code 7520h ../drv.rel \
 			--code 7fd0h ../chgbnk.rel
 
 bank0/b0labels.inc: \

@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <ctype.h>
 #include "asmcall.h"
 #include "types.h"
@@ -38,7 +39,12 @@ typedef struct {
     ulong firstFileSector;
     uint fileSizeInSector;
 } GeneratedFileTableEntry;
-    
+
+typedef struct {
+    ulong firstClusterSector;
+    uint clusterSizeInSector;
+} GeneratedClusterTableEntry;
+
     /* Defines */
 
 #define IS_NEXTOR (1 << 7)
@@ -123,6 +129,7 @@ bool printFilenames;
 uint workAreaAddress;
 fileInfoBlock* fib;
 int totalFilesProcessed;
+int totalChainsAdded;
 driveLetterInfo* driveInfo;
 byte* driveParameters;
 byte* fileContentsBase;
@@ -153,13 +160,11 @@ void TooManyFiles();
 void StartSearchingFiles(char* fileName);
 bool DirectoryExists(char* dirName);
 void ProcessFileFound();
+void ProcessFileFinish();
 void GetDriveInfoForFileInFib();
 void CheckControllerForFileInFib();
-void CheckConsecutiveClustersForFileInFib();
-ulong GetFirstFileSectorForFileInFib();
-void AddFileInFibToFilesTable(ulong sector);
+ulong GetFirstFileSectorForFileInFib(uint8_t drive, uint16_t cluster);
 void SetDeviceIndexesOfFilesTableToZeroIfAllInSameDeviceAsDataFile();
-void AddFileInFibToFilenamesInfo();
 void GenerateFile();
 void ConvertDirectoryToFilename(char* fileOrDirectoryName);
 void AddFileExtension(char* fileName);
@@ -249,9 +254,7 @@ void Initialize()
     fib = malloc(sizeof(fileInfoBlock));
     driveInfo = malloc(sizeof(driveLetterInfo));
     driveParameters = malloc(32);
-    fileContentsBase = malloc(
-        sizeof(GeneratedFileHeader) +
-        (sizeof(GeneratedFileTableEntry) * MaxFilesToProcess));
+    fileContentsBase = malloc(512);
     fileNamesBase = malloc(19 * MaxFilesToProcess);
     fileNamesAppendAddress = fileNamesBase;
     
@@ -308,6 +311,7 @@ void ProcessCreateFileArguments(char** argv, int argc)
             TooManyFiles();
         }
     }
+    ProcessFileFinish();
 
     if(*outputFileName == null) {
         Terminate("No output file name specified");
@@ -501,12 +505,12 @@ bool DirectoryExists(char* dirName)
 void ProcessFileFound()
 {
     char key;
-    ulong sector;
 
     GetDriveInfoForFileInFib();
     CheckControllerForFileInFib();
-    CheckConsecutiveClustersForFileInFib();
-    
+
+    // Check size
+
     if(fib->fileSize < 512) {
         printf("*** %s is too small (< 512 bytes) or empty - skipped\r\n", fib->filename);
         return;
@@ -516,16 +520,116 @@ void ProcessFileFound()
         printf("*** %s is too big (> 32 MBytes) - skipped\r\n", fib->filename);
         return;
     }
+
+    // AddFileInFibToFilesTable
+
+    GeneratedFileTableEntry* tableEntry =
+        (GeneratedFileTableEntry*)(fileContentsBase + sizeof(GeneratedFileHeader) + 
+                                   (sizeof(GeneratedFileTableEntry) * totalFilesProcessed));
+
+    tableEntry->deviceIndex = driveInfo->deviceIndex;
+    tableEntry->logicalUnitNumber = driveInfo->logicalUnitNumber;
+    tableEntry->firstFileSector = ((ulong)fib->logicalDrive << 24) | fib->startCluster; // for now put in the cluster, later we replace with sector
+    tableEntry->fileSizeInSector = (uint)(fib->fileSize >> 9);
+
+    //AddFileInFibToFilenamesInfo
+    int fileIndex = totalFilesProcessed + 1;
     
-    sector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib();
-    AddFileInFibToFilesTable(sector);
-    AddFileInFibToFilenamesInfo();
+    sprintf(fileNamesAppendAddress, "%c -> ", fileIndex <= 9 ? fileIndex + '0' : fileIndex - 10 + 'A');
+    fileNamesAppendAddress += 5;
+    strcpy(fileNamesAppendAddress, fib->filename);
+    fileNamesAppendAddress += strlen(fib->filename);
+    *fileNamesAppendAddress++ = '\r';
+    *fileNamesAppendAddress++ = '\n';
     
     totalFilesProcessed++;
 
     if(printFilenames) {
         key = totalFilesProcessed < 10 ? totalFilesProcessed + '0' : totalFilesProcessed - 10 + 'A';
         printf("%c -> %s\r\n", key, fib->filename);
+    }
+}
+
+void ProcessFileFinish()
+{
+    // File table
+    GeneratedFileTableEntry* tableEntry =
+        (GeneratedFileTableEntry*)(fileContentsBase + sizeof(GeneratedFileHeader));
+
+    // Cluster table
+    uint clusterOffset = sizeof(GeneratedFileHeader) + (sizeof(GeneratedFileTableEntry) * totalFilesProcessed);
+    GeneratedClusterTableEntry* clusterEntry =
+        (GeneratedClusterTableEntry*)(fileContentsBase + clusterOffset);
+
+    clusterInfo* ci;
+    ci = malloc(sizeof(clusterInfo));
+
+    for (int i = 0; i < totalFilesProcessed; i++) {
+        uint8_t logicalDrive = tableEntry->firstFileSector >> 24;
+        uint startCluster = (uint)tableEntry->firstFileSector;
+        uint startClusterOffset = clusterOffset;
+        uint chainCount = 0;
+        uint sectorCount = 0;
+
+        // CheckConsecutiveClustersForFileInFib
+
+        uint currentCluster = startCluster;
+
+        ulong startSector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib(logicalDrive, startCluster);
+
+        printf("Checking FAT chain for entry %d... ", i);
+        while(true)
+        {
+            regs.Bytes.A = logicalDrive;
+            regs.Words.HL = (int)ci;
+            regs.UWords.DE = currentCluster;
+            DoDosCall(_GETCLUS);
+
+            if(ci->flags.isLastClusterOfFile &&
+               (startClusterOffset == clusterOffset))
+            {
+                // single chain, just put in start sector
+                tableEntry->firstFileSector = startSector;
+                print("Ok (not fragmented)\r\n");
+                break;
+            }
+
+            if(!ci->flags.isLastClusterOfFile &&
+               ci->fatEntryValue == currentCluster + 1) {
+                // continues clusters
+                currentCluster++;
+            }else{
+                // fragmentation detected, create entry in cluster table
+                if (clusterOffset > 512-sizeof(GeneratedClusterTableEntry)) {
+                    // running out of space in the sector
+                    Terminate("Too much fragmentation");
+                }
+                ulong endSector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib(logicalDrive, currentCluster + 1);
+                uint numSectors = endSector - startSector;
+                clusterEntry->firstClusterSector = startSector - sectorCount; // note: relative to start of virtual disk, so subtract start sector on virtual disk
+                clusterEntry->clusterSizeInSector = numSectors;
+                clusterEntry++;
+                clusterOffset += sizeof(GeneratedClusterTableEntry);
+                chainCount++;
+                sectorCount += numSectors;
+                if (!ci->flags.isLastClusterOfFile) {
+                    currentCluster = ci->fatEntryValue;
+                    startSector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib(logicalDrive, ci->fatEntryValue);
+                }
+                totalChainsAdded++;
+            }
+
+            if(ci->flags.isLastClusterOfFile)
+            {
+                tableEntry->firstFileSector = 0xFF000000L | startClusterOffset;
+                printf("Ok (%d chains, %d sectors)\r\n", chainCount, sectorCount);
+                print("\r\n");
+                break;
+            }
+        }
+
+        // Next file
+        tableEntry++;
     }
 }
 
@@ -544,80 +648,20 @@ void CheckControllerForFileInFib()
     }
 }
 
-void CheckConsecutiveClustersForFileInFib()
-{
-    uint currentCluster;
-    clusterInfo* ci;
-
-    currentCluster = fib->startCluster;
-    ci = malloc(sizeof(clusterInfo));
-
-    printf("Checking FAT chain for %s... ", fib->filename);
-    while(true)
-    {
-        regs.Bytes.A = fib->logicalDrive;
-        regs.Words.HL = (int)ci;
-        regs.UWords.DE = currentCluster;
-        DoDosCall(_GETCLUS);
-
-        if(ci->flags.isLastClusterOfFile)
-        {
-            print("Ok!\r\n");
-            return;
-        }
-
-        if(ci->fatEntryValue != currentCluster + 1)
-        {
-            print("Error!\r\n*** The file is not stored across consecutive sectors in disk");
-            Terminate(null);
-        }
-
-        currentCluster++;
-    }
-}
-
-ulong GetFirstFileSectorForFileInFib()
+ulong GetFirstFileSectorForFileInFib(uint8_t drive, uint16_t cluster)
 {
     ulong firstDataSector;
     byte sectorsPerCluster;
 
     regs.Words.DE = (int)driveParameters;
-    regs.Bytes.L = fib->logicalDrive;
+    regs.Bytes.L = drive;
     DoDosCall(_DPARM);
     firstDataSector = *(uint*)(driveParameters+15);
     sectorsPerCluster = *(byte*)(driveParameters+3);
     
     return
         firstDataSector +
-        ((ulong)(fib->startCluster - 2) * (ulong)sectorsPerCluster);
-}
-
-void AddFileInFibToFilesTable(ulong sector)
-{
-    GeneratedFileTableEntry* tableEntry;
-    
-    tableEntry =
-        (GeneratedFileTableEntry*)
-            (fileContentsBase + 
-            sizeof(GeneratedFileHeader) + 
-            (sizeof(GeneratedFileTableEntry) * totalFilesProcessed));
-            
-    tableEntry->deviceIndex = driveInfo->deviceIndex;
-    tableEntry->logicalUnitNumber = driveInfo->logicalUnitNumber;
-    tableEntry->firstFileSector = sector;
-    tableEntry->fileSizeInSector = (uint)(fib->fileSize >> 9);
-}
-
-void AddFileInFibToFilenamesInfo()
-{
-    int fileIndex = totalFilesProcessed + 1;
-    
-    sprintf(fileNamesAppendAddress, "%c -> ", fileIndex <= 9 ? fileIndex + '0' : fileIndex - 10 + 'A');
-    fileNamesAppendAddress += 5;
-    strcpy(fileNamesAppendAddress, fib->filename);
-    fileNamesAppendAddress += strlen(fib->filename);
-    *fileNamesAppendAddress++ = '\r';
-    *fileNamesAppendAddress++ = '\n';
+        ((ulong)(cluster - 2) * (ulong)sectorsPerCluster);
 }
 
 void SetDeviceIndexesOfFilesTableToZeroIfAllInSameDeviceAsDataFile()
@@ -679,10 +723,9 @@ void GenerateFile()
     fileHandle = regs.Bytes.B;
     
     regs.Words.DE = (int)fileContentsBase;
-    regs.Words.HL = 
-            (uint)
-            (sizeof(GeneratedFileHeader) + 
-            (sizeof(GeneratedFileTableEntry) * totalFilesProcessed));
+    regs.Words.HL = (uint)(sizeof(GeneratedFileHeader) + 
+            (sizeof(GeneratedFileTableEntry) * totalFilesProcessed) +
+            (sizeof(GeneratedClusterTableEntry) * totalChainsAdded));
     DoDosCall(_WRITE);
         
     fileNamesHeader = "\fDisk image files registered:\r\n\r\n";
@@ -728,7 +771,7 @@ void SetupFile()
 
     VerifyDataFileSignature((byte*)sectorBuffer);
 
-    sector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib();
+    sector = driveInfo->firstSectorNumber + GetFirstFileSectorForFileInFib(fib->logicalDrive, fib->startCluster);
     
     if(setupPartitionDeviceIndex == 0) {
         setupPartitionDeviceIndex = driveInfo->deviceIndex;
