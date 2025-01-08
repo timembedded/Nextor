@@ -60,10 +60,8 @@ ram_ad	defl	DATABASE
     spare   1
     ;NOTE! BK4_ADD is manually defined in bank5/dos.h, and must be updated if it changes
     var2 BK4_ADD,F1D0   ;Address of routine to be called in bank 4
-    var TMP_SEC,4       ;Used for temporary storage of a 32 bit sector number
-;
-	const   DSK_CURRENT_FILE_CLUS_START,TMP_SEC     ;First sector within the image that is selected
-	const   DSK_CURRENT_FILE_CLUS_SIZE,TMP_SEC+2    ;Number of sectors within the image that is selected
+    var2 DSK_CURRENT_FILE_CLUS_START  ;First sector within the image that is selected
+    var2 DSK_CURRENT_FILE_CLUS_SIZE   ;Number of sectors within the image that is selected
 
 ;	------------------------
 ;

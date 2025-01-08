@@ -32,9 +32,9 @@ ALIGN	macro	ADDR
     endif
 endm
 
-ORIGIN	equ	7520h
+ORIGIN	equ	7600h
 
-    ALIGN 7520h
+    ALIGN 7600h
 ;
 ;       External Routines.
 ;
@@ -126,12 +126,11 @@ CHGF3A:
     ld	a,d
     and	111b	;Device
 
-    ld	l,(ix+EMU_FILE_FIRST_SECTOR##)
-    ld	h,(ix+EMU_FILE_FIRST_SECTOR##+1)
-    ld	(TMP_SEC##),hl
+    ld	e,(ix+EMU_FILE_FIRST_SECTOR##)
+    ld	d,(ix+EMU_FILE_FIRST_SECTOR##+1)
     ld	l,(ix+EMU_FILE_FIRST_SECTOR##+2)
     ld	h,(ix+EMU_FILE_FIRST_SECTOR##+3)
-    ld	(TMP_SEC##+2),hl
+    call PUSH_HL_DE
 
     ld	iy,(0F348h-1)	;Master controller slot
     ld	hl,DEV_RW##
@@ -139,13 +138,14 @@ CHGF3A:
     ld	c,b
     ld	b,1
     ld	hl,($SECBUF##)
-    ld	de,TMP_SEC##
     or	a
 
     push	ix
     ld	ix,CALDRV##
     call	CALSLT##	;Call DEV_RW
     pop	ix
+    pop bc ; sector hl:de
+    pop bc ; sector hl:de
     pop	bc
     call CAPSOFF
     or	a
@@ -278,6 +278,21 @@ CAPSOFF:
     pop	af
     ret
 
+
+; Push HL(msb):DE(lsb) on stack and return the address on stack in DE
+; Modifies: HL,DE
+PUSH_HL_DE:
+    ex  (sp),hl     ; replace return address by HL (msb)
+    push de         ; push DE (lsb), now the 32-bit value is stored from SP
+    ex  de,hl
+    push af
+    ld  hl,2
+    add hl,sp
+    pop af
+    ex  de,hl
+    jp  (hl)        ; return, pointer to pushed value in DE
+
+
 ;The routine EMU_CHK_SEC is invoked before sector access in emulation mode
 ;to check if the correct cluster chain is selected for the current disk image
 ;
@@ -408,46 +423,6 @@ HAS_PARTITION:
     ret
 RET_NZ:
     inc	a
-    ret
-
-;-----------------------------------------------------------------------------
-;
-; Convert the disk error returned by a device-based routine,
-; into its drive-based equivalent
-
-POP_CONV_ERR:
-    inc	sp
-    inc	sp
-
-CONV_ERR:
-    or	a
-    ret	z
-
-    push	bc
-    ld	b,0
-    cp	.WPROT##
-    jr	z,CONV_ERR_END
-    ld	b,2
-    cp	.NRDY##
-    jr	z,CONV_ERR_END
-    ld	b,4
-    cp	.DATA##
-    jr	z,CONV_ERR_END
-    ld	b,6
-    cp	.SEEK##
-    jr	z,CONV_ERR_END
-    ld	b,8
-    cp	.RNF##
-    jr	z,CONV_ERR_END
-    ld	b,10
-    cp	.WRERR##
-    jr	z,CONV_ERR_END
-    ld	b,12
-
-CONV_ERR_END:
-    ld	a,b
-    pop	bc
-    scf
     ret
 
     ; Wait for VDP interrupt.
@@ -727,27 +702,36 @@ DIOEN3:
     ld	a,1
     ld	(KSLOT##),a	;KSLOT=1 -> device-based
 
-    push	hl
+    push hl
     ld	l,(iy+UD1_FIRST_ABSOLUTE_SECTOR##)		; maps to DSK_CURRENT_FILE_FIRST_SECTOR when in emulation mode
     ld	h,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+1)
     add	hl,de
-    ld	ix,TMP_SEC##
-    ld	(ix),l	;Calculate absolute sector number
-    ld	(ix+1),h
+
+    ex  de,hl   ; DE = lsb
     ld	l,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+2)
     ld	h,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+3)
+    push de
     ld	de,0
     adc	hl,de
-    ld	(ix+2),l
-    ld	(ix+3),h
-    pop	hl		;Restore transfer address
-    ld	de,TMP_SEC##
-    
+    pop de
+
+    pop ix          ; restore transfer address
+    pop af
+    call PUSH_HL_DE ; DE = pointer to pushed value
+    push af
+    push ix
+    pop hl          ; HL = transfer address again
+
     ld	c,(iy+UD1_LUN_INDEX##) ;Set LUN index
     pop	af                   ;From here Cy must be kept untouched
     ld	a,(iy+UD1_DEVICE_INDEX##) ;Set device index
-    jr	DIO_ENTRY_DO_2
+    call DIO_ENTRY_DO_2
 
+    inc sp  ; remove 32-bit sector from stack
+    inc sp
+    inc sp
+    inc sp
+    ret
         
 ;From here, the processing is almost the same for device-based drivers
 ;and for drive-based drivers, since the relevant parameters are almost the same
@@ -1016,24 +1000,22 @@ DO_MKDPB:
     jp	nz,CONV_ERR
 
 DPBEN2:
-    push	hl
-    ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##)
-    ld	(TMP_SEC##),a
-    ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+1)
-    ld	(TMP_SEC##+1),a
-    ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+2)
-    ld	(TMP_SEC##+2),a
-    ld	a,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+3)
-    ld	(TMP_SEC##+3),a
+    push hl
+    ld	e,(iy+UD1_FIRST_ABSOLUTE_SECTOR##)
+    ld	d,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+1)
+    ld	l,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+2)
+    ld	h,(iy+UD1_FIRST_ABSOLUTE_SECTOR##+3)
+    call PUSH_HL_DE     ; DE = pointer to value on stack
     ld	a,(iy+UD1_DEVICE_INDEX##)
     ld	b,1
     ld	c,(iy+UD1_LUN_INDEX##)
-    ld	de,TMP_SEC##
     ld	hl,($SECBUF##)
     or	a
     ld	ix,DEV_RW##
     call	DO_CALBNK
-    pop	de
+    pop de ; remove 32-bit sector number from stack
+    pop de ; remove 32-bit sector number from stack
+    pop de
     inc	de
     or	a
     jp	nz,CONV_ERR
@@ -1221,27 +1203,53 @@ ASSIGN_PARTITION:
     ld a,12
     ret
 
-
 ;-----------------------------------------------------------------------------
 ;
-; Read the MBR of the device whose entry in DVB_TABLE
-; is pointed by IY. Returns the disk error in A.
-; Corrupts AF, BC, DE, HL, IX, IY.
+; Convert the disk error returned by a device-based routine,
+; into its drive-based equivalent
 
-READ_BOOT:
-    ld	de,0
-    ld	(TMP_SEC##),de
-    ld	(TMP_SEC##+2),de
-    ld	a,(iy+UD1_DEVICE_INDEX##)
-    ld	b,1
-    ld	c,(iy+UD1_LUN_INDEX##)
-    ld	de,TMP_SEC##
-    ld	hl,($SECBUF##)
-    or	a
-    ld	ix,DEV_RW##
-    jp	DO_CALBNK
+POP_CONV_ERR:
+	inc	sp
+	inc	sp
 
+CONV_ERR:
+	or	a
+	ret	z
 
+	push	bc
+	ld	b,0
+	cp	.WPROT##
+	jr	z,CONV_ERR_END
+	ld	b,2
+	cp	.NRDY##
+	jr	z,CONV_ERR_END
+	ld	b,4
+	cp	.DATA##
+	jr	z,CONV_ERR_END
+	ld	b,6
+	cp	.SEEK##
+	jr	z,CONV_ERR_END
+	ld	b,8
+	cp	.RNF##
+	jr	z,CONV_ERR_END
+	ld	b,10
+	cp	.WRERR##
+	jr	z,CONV_ERR_END
+	ld	b,12
+
+CONV_ERR_END:
+	ld	a,b
+	pop	bc
+	scf
+	ret
+
+COMP16:
+	ld	a,h
+	sub	d
+	ret	nz
+	ld	a,l
+	sub	e
+	ret
 
 ;-----------------------------------------------------------------------------
 ;

@@ -124,32 +124,42 @@ CHPUT:
 
     ld	a,d
     or	a
-    jp	z,UNEX_DEVL
+    jr	z,UNEX_DEVL
     cp	8
-    jp	nc,UNEX_DEVL
+    jr	nc,UNEX_DEVL
 
     ld	a,e
     or	a
-    jp	z,UNEX_DEVL
+    jr	z,UNEX_DEVL
     cp	8
-    jp	nc,UNEX_DEVL
+    jr	c,UNEX_AFTER_DEVL
+UNEX_DEVL:
+    ld	a,.IDEVL##
+    ret
+UNEX_AFTER_DEVL:
 
     ld	a,h
     and 01111111b
     ;or	a
-    jp	z,UNEX_PART
+    jp	z,UNEX_PART_NOPOP
     cp	5
-    jp	nc,UNEX_PART
+    jp	nc,UNEX_PART_NOPOP
+
+    ;--- reserve 4 bytes of scratch data on stack
+
+    ld  iy,-4
+    add iy,sp
+    ld  sp,iy
 
     ;--- Read MBR
 
     xor	a
-    ld	(TMP_SEC##),a
-    ld	(TMP_SEC##+1),a
-    ld	(TMP_SEC##+2),a
-    ld	(TMP_SEC##+3),a
+    ld	(iy),a
+    ld	(iy+1),a
+    ld	(iy+2),a
+    ld	(iy+3),a
     call	DEV_READ
-    ret	nz
+    jp	nz,TWO_POPS
 
     ;--- Get pointer to main partition table entry
 
@@ -184,7 +194,7 @@ OK_PENTRY:
     ld hl,0
     ld de,0
     ld a,0
-    ret nz
+    jp	nz,TWO_POPS
 
     ld	e,(ix+POFF_PSIZE)
     ld	d,(ix+POFF_PSIZE+1)
@@ -200,7 +210,7 @@ OK_PENTRY:
     pop	ix
     pop	iy
     xor	a
-    ret
+    jr	TWO_POPS
 DO_EXTPAR:
 
     ;--- If extended partition requested, first check that partition is actually extended
@@ -220,6 +230,9 @@ DO_EXTPAR:
     ld iyh,a
     push	iy
 
+    ld  iy,4	; restore pointer to sector number on stack
+    add iy,sp
+
     ;=== Loop for extended partition search ===
     ;Input: L=Extended partitions left to skip, plus one
     ;       IX=pointer to the extended partition entry in partition table
@@ -229,7 +242,7 @@ EXTP_LOOP:
 
     call	UPDATE_SEC
     call	DEV_READ
-    jr	nz,TWO_POPS_IY
+    jr	nz,FOUR_POPS
 
     dec	l
     ld	a,l
@@ -258,26 +271,40 @@ EXTP_LOOP:
 EXTP_ENTRYADD:    
     push	de
     push	hl
-    ld	ix,TMP_SEC##
-    ld	e,(ix)
-    ld	d,(ix+1)
-    ld	l,(ix+2)
-    ld	h,(ix+3)
+    ld	e,(iy)
+    ld	d,(iy+1)
+    ld	l,(iy+2)
+    ld	h,(iy+3)
     xor	a
     pop	ix
     pop	iy
-    jr	TWO_POPS_IY
+
+FOUR_POPS:
+    inc	sp
+    inc	sp
+    inc	sp
+    inc	sp
+TWO_POPS:
+    inc	sp
+    inc	sp
+    inc	sp
+    inc	sp
+    ret
 
     ;--- Not there yet:
     ;    check that the next extended entry exists, and read it
 
 EXTP_NEXT:
-    pop	iy		;Restore outer extended partition start sector
-    ld	(TMP_SEC##+2),iy
-    pop	ix
-    ld	(TMP_SEC##),ix
+    ex  (sp),hl	;Get outer extended partition start sector
+    ld	(iy+2),l
+    ld	(iy+3),h
+    ex  (sp),hl
+    pop ix
+    ex  (sp),hl
+    ld	(iy),l
+    ld	(iy+1),h
+    ex  (sp),hl
     push	ix
-    push	iy
 
     ld	ix,($SECBUF##)
     push	bc
@@ -292,16 +319,6 @@ EXTP_NEXT:
     jr	EXTP_LOOP
 
 
-TWO_POPS_IY:
-    inc	sp
-    inc	sp
-    inc	sp
-    inc	sp
-    ;pop	iy
-    ;pop	iy
-    ret
-
-
 ;Return with non-existing partition or device indication
 
 TPIY_UNEX_PART:
@@ -309,33 +326,36 @@ TPIY_UNEX_PART:
     pop	iy
 
 UNEX_PART:
+    pop	iy
+    pop	iy
+UNEX_PART_NOPOP:
     ld	a,.IPART##
     ld	b,0
     ret
 
-UNEX_DEVL:
-    ld	a,.IDEVL##
-    ret
-
 
 ;Perform a 32-bit sector sum
-;Input: (IX+POFF_PSTART) and (TMP_SEC##) hold the numbers to sum
-;Output: (TMP_SEC##) holds the result
+;Input: (IX+POFF_PSTART) and (IY) hold the numbers to sum
+;Output: (IY) holds the result
 ;Corrupts F
 
 UPDATE_SEC:
     push	hl
     push	de
-    ld	de,(TMP_SEC##)
+    ld	e,(iy)
+    ld	d,(iy+1)
     ld	l,(ix+POFF_PSTART)
     ld	h,(ix+POFF_PSTART+1)
     add	hl,de
-    ld	(TMP_SEC##),hl
-    ld	de,(TMP_SEC##+2)
+    ld	(iy),l
+    ld	(iy+1),h
+    ld	e,(iy+2)
+    ld	d,(iy+3)
     ld	l,(ix+POFF_PSTART+2)
     ld	h,(ix+POFF_PSTART+3)
     adc	hl,de
-    ld	(TMP_SEC##+2),hl
+    ld	(iy+2),l
+    ld	(iy+3),h
     pop	de
     pop	hl
     ret
@@ -346,17 +366,18 @@ UPDATE_SEC:
 ;       B = Driver segment (FFh for ROM drivers), currently ignored
 ;       D = Device index, 1 to 7
 ;       E = LUN index, 1 to 7
-;       (TMP_SEC##) = Sector number
+;       (IY) = Sector number
 ;Output: A = Error code from DEV_RW
 ;        NZ if A<>0
-;Corrupts: AF, IX, IY
+;Corrupts: AF, IX
 
 DEV_READ:
     push	bc
     push	de
     push	hl
+    push	iy
 
-    ld iyh,c
+    ld	iyh,c
     ld	ix,DEV_RW##
     ld	(BK4_ADD##),ix
     ld	ix,CALDRV##
@@ -365,10 +386,12 @@ DEV_READ:
     ld	c,e
     ld	b,1
     ld	hl,($SECBUF##)
-    ld	de,TMP_SEC##
+    pop de
+    push de
 
     call	CALSLT##
 
+    pop iy
     pop	hl
     pop	de
     pop	bc
@@ -1199,10 +1222,14 @@ AA_PX_KILLEMU:
     ld	a,(ix+AAD_LOOP_DEV_INDEX)
     ld  c,(ix+AAD_DRIVER_SLOT)
     ld de,0
-    ld	(TMP_SEC##),de
-    ld	(TMP_SEC##+2),de
+    push de	; push sector number on stack
+    push de
+    ex  de,hl	; get address of sector number on stack
+    add hl,sp	; note: hl is zero already
+    ex  de,hl
     call AA_WSEC
-
+    pop hl	; discard sector number from stack
+    pop hl	; discard sector number from stack
     pop ix
     pop bc
     pop de
@@ -1275,15 +1302,22 @@ AA_PLOOP_END:
 AA_PLOOP_OKTYPE:
     ld	b,(ix+AAD_LOOP_LUN_INDEX)
     ld	a,(ix+AAD_LOOP_DEV_INDEX)
-    ld	(TMP_SEC##),de
     ld  (ix+AAD_CURR_PART_SECTOR),e
     ld  (ix+AAD_CURR_PART_SECTOR+1),d
-    ld	(TMP_SEC##+2),hl
     ld  (ix+AAD_CURR_PART_SECTOR+2),l
     ld  (ix+AAD_CURR_PART_SECTOR+3),h
+
+    push ix		; DE = ix+AAD_CURR_PART_SECTOR
+    ld  de,AAD_CURR_PART_SECTOR
+    add ix,de
+    push ix
+    pop de
+    pop ix
+
     ld  c,(ix+AAD_DRIVER_SLOT)
 
     call	AA_RSEC
+
     jr	nz,AA_PLOOP_NEXT
 
     ;* Check FAT boot sector
@@ -1360,10 +1394,12 @@ AA_NOT_ACTIVE:
     ld	a,(ix+AAD_CURR_PART_DEVLUN)
     ld	(ix+AAD_CAND_PART_DEVLUN),a  ;Valid partition: mark as candidate device
 
-    ld	hl,(TMP_SEC##)	;If this is the first partition being examined, save its number
+    ld  l,(ix+AAD_CURR_PART_SECTOR)  ;If this is the first partition being examined, save its number
+    ld  h,(ix+AAD_CURR_PART_SECTOR+1)
     ld (ix+AAD_CAND_PART_SECTOR),l
     ld (ix+AAD_CAND_PART_SECTOR+1),h
-    ld	hl,(TMP_SEC##+2)
+    ld  l,(ix+AAD_CURR_PART_SECTOR+2)
+    ld  h,(ix+AAD_CURR_PART_SECTOR+3)
     ld (ix+AAD_CAND_PART_SECTOR+2),l
     ld (ix+AAD_CAND_PART_SECTOR+3),h
 
@@ -1556,7 +1592,7 @@ TRY_RAM_EMU_NO_SIG:
 ;Input: A  = Device index
 ;       B  = LUN
 ;       C  = Driver slot
-;       (TMP_SEC) = sector number
+;       (DE) = sector number
 ;Output: NZ on error
 ;Preserves IX
 
@@ -1573,7 +1609,6 @@ AA_DOSEC:
     ld	c,b
     ld	b,1
     ld	hl,($SECBUF##)
-    ld	de,TMP_SEC##
     push	ix
     ld	ix,CALDRV##
     call	CALSLT	;Call DEV_RW
@@ -1757,8 +1792,7 @@ GO_EMU:
 
     ld (EMU_TMP##+EMU_FILE_FIRST_SECTOR##),de
     ld (EMU_TMP##+EMU_FILE_FIRST_SECTOR##+2),hl
-    ld (TMP_SEC##),de
-    ld (TMP_SEC##+2),hl
+    ld de,EMU_TMP##+EMU_FILE_FIRST_SECTOR##
     call	AA_RSEC
     ld	a,0
     ret	nz

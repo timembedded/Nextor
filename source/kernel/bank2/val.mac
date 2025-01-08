@@ -2805,15 +2805,24 @@ rdwr_devcmd:
 	ld	l,(ix+UD_FIRST_DEVICE_SECTOR##)	;Calculate sector number
 	ld	h,(ix+UD_FIRST_DEVICE_SECTOR##+1)
 	add	hl,de
-	ld	(TMP_SEC##),hl
+	ex	de,hl
 	ld	l,(ix+UD_FIRST_DEVICE_SECTOR##+2)
 	ld	h,(ix+UD_FIRST_DEVICE_SECTOR##+3)
 	ld	a,(DIO_EX_SECTOR##)
+	push	de
 	ld	e,a
 	ld	d,0
 	adc	hl,de
-	ld	(TMP_SEC##+2),hl
-	pop	hl
+	pop	de
+	pop	af ; is actually original HL
+	ex	(sp),hl ; sector number on stack, get AF back in HL
+	push	de	; sector number on stack
+	push	hl	; =AF
+	push	af	; =HL
+	ld	hl,4
+	add	hl,sp
+	pop	de	; original HL
+	ex	de,hl	; DE = pointer to sector number
 
 	;ld	c,b		;B=Sector count (no conversion required)
 	ex	af,af'
@@ -2824,18 +2833,24 @@ rdwr_devcmd:
 	ld	a,c		;A=Required segment
 	ld	c,(ix+UD_LUN_INDEX##)	;C=LUN index
 
-	ld	de,TMP_SEC##
 	push	bc
 	call	CALL_DRV
 	or	a
 	jr	z,rdwr_devcmd_ok
 	pop	hl	;On error, return number of transferred sectors
 	scf
-	ret
+	jr	rdwr_devcmd_ret
 rdwr_devcmd_ok:
 	pop	bc	;On success, return transferred sectors=required sectors
 	;ld	b,c   ;WTF?????
-	ret	
+rdwr_devcmd_ret:
+	inc	sp	;Remove sector number from stack
+	inc	sp
+	inc	sp
+	inc	sp
+	ret
+
+
 ;
 ;	---------------------------------
 ;
