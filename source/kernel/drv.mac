@@ -577,25 +577,9 @@ DIOCHGFOK:  ; stack: AF
     ld	b,0
     scf
     ret
+
 DIOEN1:
-
-    ; XXX - For now always read the emulation data, as we don't have a good place to store it yet
-    push hl
-    push de
-    push bc
-    push iy
-    ld	 a,(ix+DSK_CURRENT_FILE_INDEX##)
-    and	 3Fh
-    ld   c,a
-    call CAPSON
-    call CHGF3A
-    pop  iy
-    pop  bc
-    pop  de
-    pop  hl
-
     pop af
-    jr DOCHUNK
 
 ; DE = sector, HL = transfer address, B = sectors
 DOCHUNK:    ; stack: -
