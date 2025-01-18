@@ -1374,6 +1374,22 @@ AA_SPC_OK:
     and 80h
     jr z,AA_NOT_ACTIVE
 
+    call AA_UPDATE_CAND_PART
+
+    jp	AA_DO_ASSIGN
+
+AA_NOT_ACTIVE:
+    ld	a,(ix+AAD_CAND_PART_DEVLUN)
+    or	a
+    jp	nz,AA_PLOOP_NEXT
+
+    ;Valid partition: mark as candidate device
+    ;If this is the first partition being examined, save its number
+    call AA_UPDATE_CAND_PART
+
+    jp  AA_PLOOP_NEXT
+
+AA_UPDATE_CAND_PART:
     ld  l,(ix+AAD_CURR_PART_SECTOR)
     ld  h,(ix+AAD_CURR_PART_SECTOR+1)
     ld  (ix+AAD_CAND_PART_SECTOR),l
@@ -1384,26 +1400,7 @@ AA_SPC_OK:
     ld  (ix+AAD_CAND_PART_SECTOR+3),h
     ld	a,(ix+AAD_CURR_PART_DEVLUN)
     ld	(ix+AAD_CAND_PART_DEVLUN),a
-    jp	AA_DO_ASSIGN
-
-AA_NOT_ACTIVE:
-    ld	a,(ix+AAD_CAND_PART_DEVLUN)
-    or	a
-    jp	nz,AA_PLOOP_NEXT
-
-    ld	a,(ix+AAD_CURR_PART_DEVLUN)
-    ld	(ix+AAD_CAND_PART_DEVLUN),a  ;Valid partition: mark as candidate device
-
-    ld  l,(ix+AAD_CURR_PART_SECTOR)  ;If this is the first partition being examined, save its number
-    ld  h,(ix+AAD_CURR_PART_SECTOR+1)
-    ld (ix+AAD_CAND_PART_SECTOR),l
-    ld (ix+AAD_CAND_PART_SECTOR+1),h
-    ld  l,(ix+AAD_CURR_PART_SECTOR+2)
-    ld  h,(ix+AAD_CURR_PART_SECTOR+3)
-    ld (ix+AAD_CAND_PART_SECTOR+2),l
-    ld (ix+AAD_CAND_PART_SECTOR+3),h
-
-    jp  AA_PLOOP_NEXT
+    ret
 
     ;--- No suitable partitions in the current LUN,
     ;    so jump to the next device or LUN
