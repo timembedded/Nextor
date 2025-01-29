@@ -113,8 +113,10 @@ typedef struct {
 #define _READ 0x48
 #define _WRITE 0x49
 #define _SEEK 0x4A
+#define _DELETE 0x4D
 #define _PARSE 0x5B
 #define _WPATH 0x5E
+#define _FLUSH 0x5F
 #define _TERM 0x62
 #define _EXPLAIN 0x66
 #define _DOSVER 0x6F

@@ -135,7 +135,6 @@ byte* driveParameters;
 byte* fileContentsBase;
 byte* fileNamesBase;
 byte* fileNamesAppendAddress;
-byte fileHandle;
 int setupPartitionDeviceIndex;
 int setupPartitionLunIndex;
 bool setupAsPersistent;
@@ -148,10 +147,8 @@ bool setupAsPersistent;
 
 /* Function prototypes */
 
-void CheckPreconditions();
 void CheckPrimaryControllerIsNextor();
 void Initialize();
-bool ProcessArguments(char** argv, int argc);
 void ProcessCreateFileArguments(char** argv, int argc);
 void ProcessSetupFileArguments(char** argv, int argc);
 int ProcessOption(char optionLetter, char* optionValue);
@@ -159,6 +156,7 @@ void ProcessFilename(char* fileName);
 void TooManyFiles();
 void StartSearchingFiles(char* fileName);
 bool DirectoryExists(char* dirName);
+bool FileExists(char* fileName);
 void ProcessFileFound();
 void ProcessFileFinish();
 void GetDriveInfoForFileInFib();
@@ -188,31 +186,84 @@ void ResetComputer();
 #define WriteDeviceSector(driverSlot, deviceIndex, lunIndex, sectorNumber, buffer) DeviceSectorRW(driverSlot, deviceIndex, lunIndex, sectorNumber, buffer, true)
 
     /* MAIN */
-    
+
 int main(char** argv, int argc)
 {
-    bool isSetupFile;
+    bool isSetupFile = false;
+    bool useTempFile = false;
 
     ASMRUT[0] = 0xC3;
     print(strTitle);
 
-    CheckPreconditions();
+    /* Check preconditions and initialize */
+
+    CheckDosVersion();
+    CheckPrimaryControllerIsNextor();
     Initialize();
-    isSetupFile = ProcessArguments(argv, argc);
+
+    /* Parse arguments */
+
+    if(argc > 0 && argv[0][0] == '?') {
+        print(strHelp);
+        Terminate(null);
+    }
+
+    if(argc < 1) {
+        print(strUsage);
+        Terminate(null);
+    }
+
+    if(strcmpi(argv[0], "set") == 0) {
+        isSetupFile = true;
+    }else{
+        /* Check if first file is a disk image, if so use temp-file as emu-file */
+        if (FileExists(argv[0])) {
+            int sectors = fib->fileSize / 512;
+            if (sectors >= 720) {
+                /* This qualifies as disk image */
+                useTempFile = true;
+            }
+        }
+    }
+
+    if (useTempFile) {
+        /* Use temporary file which will automatically removed before reboot */
+        strcpy(outputFileName, "T$E$M$P$.EMU");
+    }
+
+    if (isSetupFile) {
+        ProcessSetupFileArguments(argv, argc);
+    }else{
+        ProcessCreateFileArguments(argv, argc);
+    }
 
     if(isSetupFile) {
         SetupFile();
         printf("Done. Resetting computer...");
         ResetComputer();
     }
+
     if(totalFilesProcessed > 0) {
         SetDeviceIndexesOfFilesTableToZeroIfAllInSameDeviceAsDataFile();
         GenerateFile();
-        printf(
-            "%s%s successfully generated!\r\n%i disk image file(s) registered\r\n",
-            printFilenames ? "\r\n" : "", outputFileName, totalFilesProcessed);
+        if (!useTempFile) {
+            printf("%s%s successfully generated!\r\n", printFilenames ? "\r\n" : "", outputFileName);
+        }
+        printf("%i disk image file(s) registered\r\n", totalFilesProcessed);
     } else {
         print(strUsage);
+    }
+
+    if(useTempFile) {
+        SetupFile();
+
+        /* Delete the temporary file,
+           the data will remain on the disk, no need to keep the file */
+        regs.Words.DE = (int)outputFileName;
+        DoDosCall(_DELETE);
+
+        printf("Done. Resetting computer...");
+        ResetComputer();
     }
     
     Terminate(null);
@@ -220,12 +271,6 @@ int main(char** argv, int argc)
 }
 
 /* Functions */
-
-void CheckPreconditions()
-{
-    CheckDosVersion();
-    CheckPrimaryControllerIsNextor();
-}
 
 void CheckPrimaryControllerIsNextor()
 {
@@ -258,32 +303,10 @@ void Initialize()
     fileNamesBase = malloc(19 * MaxFilesToProcess);
     fileNamesAppendAddress = fileNamesBase;
     
-    fileHandle = 0;
     bootFileIndex = 1;
     printFilenames = false;
     workAreaAddress = 0;
     totalFilesProcessed = 0;
-}
-
-bool ProcessArguments(char** argv, int argc) 
-{
-    if(argc > 0 && argv[0][0] == '?') {
-        print(strHelp);
-        Terminate(null);
-    }
-
-    if(argc < 2) {
-        print(strUsage);
-        Terminate(null);
-    }
-
-    if(strcmpi(argv[0], "set") == 0) {
-        ProcessSetupFileArguments(argv, argc);
-        return true;
-    }
-
-    ProcessCreateFileArguments(argv, argc);
-    return false;
 }
 
 void ProcessCreateFileArguments(char** argv, int argc)
@@ -500,6 +523,12 @@ bool DirectoryExists(char* dirName)
         TerminateWithDosError(regs.Bytes.A);
 
     return (fib->attributes & FILEATTR_DIRECTORY) != 0;
+}
+
+bool FileExists(char* fileName) 
+{ 
+    StartSearchingFiles(fileName);
+    return (regs.Bytes.A == 0);
 }
 
 void ProcessFileFound()
@@ -816,13 +845,17 @@ void VerifyDataFileSignature(byte* sectorBuffer)
     regs.Words.DE = (int)outputFileName;
     regs.Bytes.A = 1;    //read-only
     DoDosCall(_OPEN);
-    fileHandle = regs.Bytes.B;
+    byte fileHandle = regs.Bytes.B;
 
     regs.Words.DE = (int)sectorBuffer;
     regs.Words.HL = 16;
     DoDosCall(_READ);
+    int fsize = regs.Words.HL;
 
-    if(regs.Words.HL < 16 || strcmpi((char*)sectorBuffer, emuDataSignature) != 0) {
+    regs.Bytes.B = fileHandle;
+    DoDosCall(_CLOSE);
+
+    if(fsize < 16 || strcmpi((char*)sectorBuffer, emuDataSignature) != 0) {
         Terminate("Invalid emulation data file");
     }
 }
@@ -859,6 +892,10 @@ void DriverCall(byte slot, uint routineAddress)
 
 void ResetComputer()
 {
+    /* Flush filesystems before rebooting */
+    regs.Bytes.B = 0xFF;
+    DoDosCall(_FLUSH);
+
     regs.Bytes.IYh = *(byte*)EXPTBL;
     regs.Words.IX = 0;
     AsmCall(CALSLT, &regs, REGS_ALL, REGS_NONE);
@@ -869,11 +906,6 @@ void ResetComputer()
 
 void Terminate(const char* errorMessage)
 {
-    if(fileHandle != 0) {
-        regs.Bytes.B = fileHandle;
-        DoDosCall(_CLOSE);
-    }
-
     if(errorMessage != NULL) {
         printf("\r\x1BK*** %s\r\n", errorMessage);
     }
