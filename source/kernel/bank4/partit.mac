@@ -1904,17 +1904,17 @@ GOEMU_SETCLUS:
     jr  nz,GOEMU_NOFRAG ; not fragmented
     ; has fragmentation
     dec a
-    ld  (DSK_CURRENT_FILE_CLUS_SIZE##+1),a ; invalidate
+    ld  (DSK_EMU_CLUS_SIZE##+1),a ; invalidate
     jr  GOEMU_END
 GOEMU_NOFRAG:
     ; no fragmentation, set full disk as one cluster
     ld  a,(iy+DSK_CURRENT_FILE_SECTORS_COUNT##)
-    ld  (DSK_CURRENT_FILE_CLUS_SIZE##),a
+    ld  (DSK_EMU_CLUS_SIZE##),a
     ld  a,(iy+DSK_CURRENT_FILE_SECTORS_COUNT##+1)
-    ld  (DSK_CURRENT_FILE_CLUS_SIZE##+1),a
+    ld  (DSK_EMU_CLUS_SIZE##+1),a
     xor a
-    ld  (DSK_CURRENT_FILE_CLUS_START##),a
-    ld  (DSK_CURRENT_FILE_CLUS_START##+1),a
+    ld  (DSK_EMU_CLUS_START##),a
+    ld  (DSK_EMU_CLUS_START##+1),a
 
     ;--- All done
 

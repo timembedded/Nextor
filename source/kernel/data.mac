@@ -60,8 +60,8 @@ ram_ad	defl	DATABASE
     spare   1
     ;NOTE! BK4_ADD is manually defined in bank5/dos.h, and must be updated if it changes
     var2 BK4_ADD,F1D0   ;Address of routine to be called in bank 4
-    var2 DSK_CURRENT_FILE_CLUS_START  ;First sector within the image that is selected
-    var2 DSK_CURRENT_FILE_CLUS_SIZE   ;Number of sectors within the image that is selected
+    var2 DSK_EMU_CLUS_START  ;First sector within the image that is selected
+    var2 DSK_EMU_CLUS_SIZE   ;Number of sectors within the image that is selected
 
 ;	------------------------
 ;

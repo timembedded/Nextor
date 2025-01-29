@@ -202,18 +202,18 @@ CHGF4:
     jr  nz,CHGF5 ; not fragmented
     ; has fragmentation
     dec a
-    ld  (DSK_CURRENT_FILE_CLUS_SIZE##+1),a ; invalidate
+    ld  (DSK_EMU_CLUS_SIZE##+1),a ; invalidate
     xor a
     ret
 CHGF5:
     ; no fragmentation, set full disk as one cluster
     ld  a,(ix+DSK_CURRENT_FILE_SECTORS_COUNT##)
-    ld  (DSK_CURRENT_FILE_CLUS_SIZE##),a
+    ld  (DSK_EMU_CLUS_SIZE##),a
     ld  a,(ix+DSK_CURRENT_FILE_SECTORS_COUNT##+1)
-    ld  (DSK_CURRENT_FILE_CLUS_SIZE##+1),a
+    ld  (DSK_EMU_CLUS_SIZE##+1),a
     xor a
-    ld  (DSK_CURRENT_FILE_CLUS_START##),a
-    ld  (DSK_CURRENT_FILE_CLUS_START##+1),a
+    ld  (DSK_EMU_CLUS_START##),a
+    ld  (DSK_EMU_CLUS_START##+1),a
     ret
 
 WAIT_KEY_RELEASE:
@@ -305,19 +305,19 @@ EMU_CHK_SEC:
 
     ld	ix,(DVB_TABLE##)
 
-    ld  a,(DSK_CURRENT_FILE_CLUS_SIZE##+1)
+    ld  a,(DSK_EMU_CLUS_SIZE##+1)
     inc a
     jr  z,CHGFCC_must_change    ; not initialized yet
 
     ; hl = sector - cluter_start, if negative, need to change
     ex   de,hl
-    ld   de,(DSK_CURRENT_FILE_CLUS_START##)
+    ld   de,(DSK_EMU_CLUS_START##)
     xor  a
     sbc  hl,de
     jr   c,CHGFCC_must_change
     ; sub size of cluter, if negative, need to change
     ; HL = sector number in this cluster
-    ld   de,(DSK_CURRENT_FILE_CLUS_SIZE##)
+    ld   de,(DSK_EMU_CLUS_SIZE##)
     sbc  hl,de
     jr   nc,CHGFCC_must_change
     ; hl is negative now, add num of sectors
@@ -367,14 +367,14 @@ CHGF6:
     add iy,bc
     jr  CHGF6
 CHGF7:
-    ld  (DSK_CURRENT_FILE_CLUS_SIZE##),bc
+    ld  (DSK_EMU_CLUS_SIZE##),bc
     add hl,bc
     ex  de,hl   ; DE = offset of requested sector within this cluster
     pop hl      ; HL = requested sector
     push hl
     xor a
     sbc hl,de   ; HL = start sector of this cluster
-    ld  (DSK_CURRENT_FILE_CLUS_START##),hl
+    ld  (DSK_EMU_CLUS_START##),hl
 
     ld  b,4
 CHGF8:
