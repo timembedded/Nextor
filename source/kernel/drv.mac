@@ -130,6 +130,7 @@ CHGF3A:
     ld	d,(ix+EMU_FILE_FIRST_SECTOR##+1)
     ld	l,(ix+EMU_FILE_FIRST_SECTOR##+2)
     ld	h,(ix+EMU_FILE_FIRST_SECTOR##+3)
+    res 7,h
     call PUSH_HL_DE
 
     ld	iy,(0F348h-1)	;Master controller slot
@@ -196,24 +197,7 @@ CHGF3B:
     and 00000111b
     ld (ix+DSK_CURRENT_FILE_LUN_INDEX##),a
 CHGF4:
-    ; setup cluster info
-    ld  a,(ix+DSK_CURRENT_FILE_FIRST_SECTOR##+3) ; MSB
-    inc a
-    jr  nz,CHGF5 ; not fragmented
-    ; has fragmentation
-    dec a
-    ld  (DSK_EMU_CLUS_SIZE##+1),a ; invalidate
     xor a
-    ret
-CHGF5:
-    ; no fragmentation, set full disk as one cluster
-    ld  a,(ix+DSK_CURRENT_FILE_SECTORS_COUNT##)
-    ld  (DSK_EMU_CLUS_SIZE##),a
-    ld  a,(ix+DSK_CURRENT_FILE_SECTORS_COUNT##+1)
-    ld  (DSK_EMU_CLUS_SIZE##+1),a
-    xor a
-    ld  (DSK_EMU_CLUS_START##),a
-    ld  (DSK_EMU_CLUS_START##+1),a
     ret
 
 WAIT_KEY_RELEASE:
@@ -297,6 +281,7 @@ PUSH_HL_DE:
 ;to check if the correct cluster chain is selected for the current disk image
 ;
 ;Inputs: DE = sector number, B = number of sectors
+;Returns: Cy = set when need to split the transfer, B = sectors for first transfer
 ;
 EMU_CHK_SEC:
     push hl
@@ -305,9 +290,13 @@ EMU_CHK_SEC:
 
     ld	ix,(DVB_TABLE##)
 
-    ld  a,(DSK_EMU_CLUS_SIZE##+1)
+    ld  a,(ix+DSK_CURRENT_FILE_FIRST_SECTOR##+3)
     inc a
     jr  z,CHGFCC_must_change    ; not initialized yet
+
+    ld  a,(ix+EMU_FILE_FIRST_SECTOR##+3)
+    and 80h
+    jr  z,CHGFC1    ; not fragmented
 
     ; hl = sector - cluter_start, if negative, need to change
     ex   de,hl
@@ -342,6 +331,10 @@ CHGFC2:
     ret
 
 CHGFCC_must_change:
+    ; mark as fragmented
+
+    set  7,(ix+EMU_FILE_FIRST_SECTOR##+3)
+
     ; read emulation data
 
     ld	 a,(ix+DSK_CURRENT_FILE_INDEX##)
@@ -518,13 +511,14 @@ DIO_SET_ERR_FLAG_END:
 ;
 
 DIO_ENTRY::
+    push	ix
     push	af  ; stack: af
     call	IS_DVB
     jp	nc,DIO_ENTRY_DO
 
     ld	a,(iy+UD1_DEVICE_INDEX##)
     or	a
-    jp	z,DISKERR
+    jp	z,DISKERRPOP
 
     call	IS_EMU
     jp	c,DIOEN_ISEMU
@@ -544,12 +538,13 @@ DIOEN_ISEMU: ; stack: AF
     push af
     or	a
 
-    jp	nz,DISKERR	;Drive number must be 0
+    jp	nz,DISKERRPOP	;Drive number must be 0
 
     call CHGFILE
     jr	z,DIOCHGFOK
     pop	bc      ; XXX why return if changed?
     ld	b,0
+    pop ix
     ret
 DIOCHGFOK:  ; stack: AF
 
@@ -573,6 +568,7 @@ DIOCHGFOK:  ; stack: AF
     jp	c,DIOEN1
 
     pop	af
+    pop ix
     ld	a,8
     ld	b,0
     scf
@@ -580,9 +576,11 @@ DIOCHGFOK:  ; stack: AF
 
 DIOEN1:
     pop af
+    pop ix
 
 ; DE = sector, HL = transfer address, B = sectors
 DOCHUNK:    ; stack: -
+    push ix
     push bc
     push de ; original requested sector
     push af
@@ -606,6 +604,7 @@ DOCHUNK:    ; stack: -
     pop de
     inc sp  ; do not pop BC (original number of sectors)
     inc sp
+    pop ix
     scf
     ret
 DIOES1:
@@ -641,10 +640,12 @@ DIOES1:
     call DOCHUNK
     jr  c, DIOES1A
     pop bc  ; original BC
+    pop ix
     ret
 DIOES1A:
     inc sp  ; do not pop BC
     inc sp
+    pop ix
     scf
     ret
 
@@ -652,6 +653,7 @@ DOALL:
     pop af
     pop de
     pop bc
+    pop ix
 DOPARTIAL:    ; stack: -
     push af
 
@@ -666,6 +668,7 @@ DOPARTIAL:    ; stack: -
     ret
 
 DIOEN2:
+    push	ix
     push	af
     ld iy,(DVB_TABLE)
 DIOEN3:
@@ -715,6 +718,7 @@ DIOEN3:
     inc sp
     inc sp
     inc sp
+    pop ix
     ret
         
 ;From here, the processing is almost the same for device-based drivers
@@ -1068,6 +1072,9 @@ DO_CALBNK:
     ;--- Jump here when an operation is requested
     ;    on an existing, but empty, entry in DVB_TABLE
 
+DISKERRPOP:
+    pop af
+    pop ix
 DISKERR:
     ld	a,12
     scf

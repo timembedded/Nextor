@@ -1885,7 +1885,7 @@ GOEMU_NORUS:
 
     ld a,(iy+DSK_CURRENT_FILE_DEVICE_INDEX##) ;set DSK_CURRENT_FILE_DEVICE_INDEX and DSK_CURRENT_FILE_LUN_INDEX as same of data file if 0
     or a
-    jr nz,GOEMU_SETCLUS
+    jr nz,GOEMU_END
     ld a,(iy+EMU_DEV_AND_LUN##)
     ld b,a
     and 00000111b
@@ -1897,26 +1897,6 @@ GOEMU_NORUS:
     rrca
     and 00000111b
     ld (iy+DSK_CURRENT_FILE_LUN_INDEX##),a
-GOEMU_SETCLUS:
-    ; setup cluster info
-    ld  a,(iy+DSK_CURRENT_FILE_FIRST_SECTOR##+3) ; MSB
-    inc a
-    jr  nz,GOEMU_NOFRAG ; not fragmented
-    ; has fragmentation
-    dec a
-    ld  (DSK_EMU_CLUS_SIZE##+1),a ; invalidate
-    jr  GOEMU_END
-GOEMU_NOFRAG:
-    ; no fragmentation, set full disk as one cluster
-    ld  a,(iy+DSK_CURRENT_FILE_SECTORS_COUNT##)
-    ld  (DSK_EMU_CLUS_SIZE##),a
-    ld  a,(iy+DSK_CURRENT_FILE_SECTORS_COUNT##+1)
-    ld  (DSK_EMU_CLUS_SIZE##+1),a
-    xor a
-    ld  (DSK_EMU_CLUS_START##),a
-    ld  (DSK_EMU_CLUS_START##+1),a
-
-    ;--- All done
 
 GOEMU_END:
     ld	a,1
